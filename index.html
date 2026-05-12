@@ -1733,6 +1733,20 @@ function saveStoreSettings(){
 }
 
 // ═══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// SESSION PERSISTENCE (bertahan saat refresh)
+// ═══════════════════════════════════════════════
+var SS_KEY = 'pakross_session';
+function saveSession(mode, page){
+  try{ sessionStorage.setItem(SS_KEY, JSON.stringify({mode:mode, page:page})); }catch(e){}
+}
+function loadSession(){
+  try{ var r=sessionStorage.getItem(SS_KEY); return r?JSON.parse(r):null; }catch(e){ return null; }
+}
+function clearSession(){
+  try{ sessionStorage.removeItem(SS_KEY); }catch(e){}
+}
+
 // NAV
 // ═══════════════════════════════════════════════
 function enterApp(mode){
@@ -1780,6 +1794,7 @@ function switchNav(name){
   if(name==='cart')   renderCart();
   if(name==='orders') renderBuyerOrders();
   var c=document.querySelector('.content'); if(c) c.scrollTop=0;
+  saveSession('buyer', name);
 }
 
 function switchNavSeller(name){
@@ -1797,6 +1812,7 @@ function switchNavSeller(name){
   if(name==='report')    renderTopProds();
   if(name==='dashboard'){ renderSellerOrders(); updateNotifStatusBar(); }
   var c=document.querySelector('.content'); if(c) c.scrollTop=0;
+  saveSession('seller', name);
 }
 function switchMode(){
   if(currentMode==='buyer') showLoginModal(); else { setMode('buyer'); showToast('🛍\uFE0F Mode Pembeli aktif'); }
@@ -1865,7 +1881,7 @@ function doLogin(){
 // EVENT LISTENERS (safe - no inline onclick issues)
 // ═══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function(){
-  $('btn-buyer').addEventListener('click', function(){ enterApp('buyer'); });
+  $('btn-buyer').addEventListener('click', function(){ clearSession(); enterApp('buyer'); });
   $('btn-seller').addEventListener('click', function(){ showLoginModal(); });
   $('login-btn').addEventListener('click', doLogin);
   $('login-cancel-btn').addEventListener('click', closeLoginModal);
@@ -1956,6 +1972,31 @@ document.addEventListener('DOMContentLoaded', function(){
   buildAvatarGrid(); buildEmojiGrid(); buildLogoGrid();
   applyStore(); applyBuyerProfile();
   renderBuyerGrid(); renderStockList(); renderTopProds(); renderBuyerOrders(); renderSellerOrders(); updateDashStats(); updateNotifBadge();
+
+  // ═══ RESTORE SESSION SAAT REFRESH ═══
+  var sess = loadSession();
+  if(sess && sess.mode){
+    // Langsung masuk app tanpa animasi splash
+    $('splash').style.display = 'none';
+    $('app').classList.add('active');
+    if(sess.mode === 'buyer'){
+      currentMode = 'buyer';
+      setTxt('mode-label', '🛍️ Pembeli');
+      $('nav-buyer').style.display = 'flex';
+      $('nav-seller').style.display = 'none';
+      $('cart-btn').style.display = 'flex';
+      switchNav(sess.page || 'home');
+    } else if(sess.mode === 'seller'){
+      currentMode = 'seller';
+      setTxt('mode-label', '🏪 Penjual');
+      $('nav-buyer').style.display = 'none';
+      $('nav-seller').style.display = 'flex';
+      $('cart-btn').style.display = 'none';
+      switchNavSeller(sess.page || 'dashboard');
+      // Cek pesanan pending setelah Firebase load
+      setTimeout(function(){ checkPendingOrdersOnLogin(); }, 2000);
+    }
+  }
 });
 
 // ========= EXTENDED FEATURES =========
