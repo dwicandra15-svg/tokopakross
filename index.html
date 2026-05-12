@@ -840,12 +840,10 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
+<!-- Firebase Module: hanya import & expose ke window -->
 <script type="module">
-// ═══════════════════════════════════════════════
-// FIREBASE SETUP
-// ═══════════════════════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get, update, onValue, push, remove }
+import { getDatabase, ref, set, get, onValue }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
@@ -857,23 +855,36 @@ const firebaseConfig = {
   messagingSenderId: "576221899434",
   appId: "1:576221899434:web:c3722607c554d8c65b7ed3"
 };
-
 const fbApp = initializeApp(firebaseConfig);
 const db = getDatabase(fbApp);
 
-// ═══════════════════════════════════════════════
-// FIREBASE HELPERS
-// ═══════════════════════════════════════════════
-function fbSet(path, data){ return set(ref(db, path), data); }
-function fbUpdate(path, data){ return update(ref(db, path), data); }
-function fbGet(path){ return get(ref(db, path)).then(function(s){ return s.val(); }); }
-function fbListen(path, cb){ onValue(ref(db, path), function(s){ cb(s.val()); }); }
+// Expose ke window agar bisa dipakai script biasa
+window._fbSet    = function(path, data){ return set(ref(db, path), data); };
+window._fbGet    = function(path){ return get(ref(db, path)).then(function(s){ return s.val(); }); };
+window._fbListen = function(path, cb){ onValue(ref(db, path), function(s){ cb(s.val()); }); };
+window._fbReady  = true;
 
-// Simpan semua data ke Firebase
-function saveToFirebase(){
-  fbSet('storeInfo', storeInfo).catch(function(){});
-  fbSet('products', products).catch(function(){});
-  // orders disimpan per item agar realtime per pesanan
+// Trigger init setelah app script siap
+document.addEventListener('DOMContentLoaded', function(){
+  // Tunggu script utama selesai setup, lalu init Firebase
+  setTimeout(function(){ if(window.initFirebase) window.initFirebase(); }, 500);
+});
+</script>
+
+<script>
+// ═══════════════════════════════════════════════
+// FIREBASE HELPERS (wrapper ke window._fb*)
+// ═══════════════════════════════════════════════
+function fbSet(path, data){
+  if(window._fbSet) return window._fbSet(path, data);
+  return Promise.resolve();
+}
+function fbGet(path){
+  if(window._fbGet) return window._fbGet(path);
+  return Promise.resolve(null);
+}
+function fbListen(path, cb){
+  if(window._fbListen) window._fbListen(path, cb);
 }
 
 // Simpan satu pesanan ke Firebase
@@ -886,38 +897,37 @@ function listenOrders(){
   fbListen('orders', function(data){
     if(!data) return;
     var fbOrders = Object.values(data);
-    // Merge: update status pesanan yg sudah ada, tambah yg baru
+    var changed = false;
     fbOrders.forEach(function(fo){
       var existing = orders.find(function(o){ return o.id === fo.id; });
       if(existing){
-        var changed = existing.status !== fo.status;
+        var statusChanged = existing.status !== fo.status;
         existing.status = fo.status;
         if(fo.doneTime) existing.doneTime = fo.doneTime;
-        // Jika status berubah & kita penjual → bunyikan alarm
-        if(changed && currentMode === 'seller' && fo.status === 'pending'){
+        if(statusChanged && currentMode === 'seller' && fo.status === 'pending'){
           playOrderAlarm();
-          sendBrowserNotif('🛒 Pesanan Baru!', fo.id + ' — ' + fo.buyerName + ' — ' + fmtRp(fo.total));
-          addNotifSilent({title:'🛒 Pesanan Baru!', body: fo.id+' — '+fo.buyerName+' — '+fmtRp(fo.total), type:'order'});
+          sendBrowserNotif('\uD83D\uDED2 Pesanan Baru!', fo.id+' \u2014 '+fo.buyerName+' \u2014 '+fmtRp(fo.total));
+          addNotifSilent({title:'\uD83D\uDED2 Pesanan Baru!', body:fo.id+' \u2014 '+fo.buyerName+' \u2014 '+fmtRp(fo.total), type:'order'});
         }
+        changed = true;
       } else {
         orders.push(fo);
-        // Pesanan baru masuk → notif penjual
+        changed = true;
         if(currentMode === 'seller'){
           playOrderAlarm();
-          sendBrowserNotif('🛒 Pesanan Baru!', fo.id + ' — ' + fo.buyerName + ' — ' + fmtRp(fo.total));
-          addNotifSilent({title:'🛒 Pesanan Baru!', body: fo.id+' — '+fo.buyerName+' — '+fmtRp(fo.total), type:'order'});
+          sendBrowserNotif('\uD83D\uDED2 Pesanan Baru!', fo.id+' \u2014 '+fo.buyerName+' \u2014 '+fmtRp(fo.total));
+          addNotifSilent({title:'\uD83D\uDED2 Pesanan Baru!', body:fo.id+' \u2014 '+fo.buyerName+' \u2014 '+fmtRp(fo.total), type:'order'});
         }
       }
     });
-    renderBuyerOrders(); renderSellerOrders(); updateDashStats();
+    if(changed){ renderBuyerOrders(); renderSellerOrders(); updateDashStats(); }
   });
 }
 
-// Dengarkan produk & storeInfo realtime
 function listenProducts(){
   fbListen('products', function(data){
     if(!data) return;
-    products = Array.isArray(data) ? data : Object.values(data);
+    products = Array.isArray(data) ? data.filter(Boolean) : Object.values(data);
     renderBuyerGrid(); renderStockList(); renderTopProds();
   });
 }
@@ -929,14 +939,23 @@ function listenStoreInfo(){
   });
 }
 
-// Notif tanpa trigger alarm (untuk merge)
 function addNotifSilent(n){
   n.time = nowFull(); n.unread = true;
   notifications.unshift(n); unreadNotifs++;
   updateNotifBadge();
-  var btn=$('notif-btn'); btn.classList.add('ring');
+  var btn=$('notif-btn'); if(!btn) return;
+  btn.classList.add('ring');
   setTimeout(function(){ btn.classList.remove('ring'); }, 2000);
 }
+
+// Dipanggil oleh module Firebase setelah siap
+window.initFirebase = function(){
+  fbGet('storeInfo').then(function(data){ if(!data) fbSet('storeInfo', storeInfo); });
+  fbGet('products').then(function(data){ if(!data) fbSet('products', products); });
+  listenOrders();
+  listenProducts();
+  listenStoreInfo();
+};
 
 // ═══════════════════════════════════════════════
 // DATA
@@ -1760,7 +1779,6 @@ document.addEventListener('DOMContentLoaded', function(){
   if($('struk-overlay'))$('struk-overlay').addEventListener('click',function(e){if(e.target===$('struk-overlay'))$('struk-overlay').classList.remove('open');});
   if($('menu-seller-wa'))$('menu-seller-wa').addEventListener('click',openWhatsApp);
   loadLS(); // ← muat data dari localStorage
-  initFirebase(); // ← sambungkan ke Firebase realtime
   buildAvatarGrid(); buildEmojiGrid(); buildLogoGrid();
   applyStore(); applyBuyerProfile();
   renderBuyerGrid(); renderStockList(); renderTopProds(); renderBuyerOrders(); renderSellerOrders(); updateDashStats(); updateNotifBadge();
