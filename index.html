@@ -546,27 +546,19 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
     <div class="section" id="sec-report">
       <div class="section-title">&#x1F4C8; Laporan Penjualan</div>
       <div class="period-row">
-        <div class="per-pill active">Hari ini</div>
-        <div class="per-pill">7 Hari</div>
-        <div class="per-pill">Bulan ini</div>
+        <div class="per-pill active" data-period="today">Hari ini</div>
+        <div class="per-pill" data-period="7days">7 Hari</div>
+        <div class="per-pill" data-period="month">Bulan ini</div>
       </div>
       <div style="margin:0 14px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:var(--radius);padding:16px;color:white;">
-        <div style="font-size:12px;opacity:.8;">Total Pendapatan &mdash; Mei 2026</div>
-        <div style="font-size:26px;font-weight:900;font-family:'Nunito',sans-serif;">Rp 14.280.000</div>
-        <div style="font-size:11px;opacity:.7;margin-top:4px;">&#x1F4E6; 243 Transaksi &bull; &#x2B50; 4.9 Rating</div>
+        <div style="font-size:12px;opacity:.8;" id="rep-period-label">Total Pendapatan &mdash; Hari Ini</div>
+        <div style="font-size:26px;font-weight:900;font-family:'Nunito',sans-serif;" id="rep-total-income">Rp 0</div>
+        <div style="font-size:11px;opacity:.7;margin-top:4px;" id="rep-meta">&#x1F4E6; 0 Transaksi &bull; &#x2B50; 4.9 Rating</div>
       </div>
       <div class="spacer"></div>
       <div style="margin:0 14px;background:white;border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);">
-        <div style="font-size:13px;font-weight:700;margin-bottom:10px;">7 Hari Terakhir</div>
-        <div class="chart-bar">
-          <div class="bw"><div class="bval">680K</div><div class="bar" style="height:45%"></div><div class="blbl">Sel</div></div>
-          <div class="bw"><div class="bval">920K</div><div class="bar" style="height:61%"></div><div class="blbl">Rab</div></div>
-          <div class="bw"><div class="bval">780K</div><div class="bar" style="height:52%"></div><div class="blbl">Kam</div></div>
-          <div class="bw"><div class="bval">1.1M</div><div class="bar" style="height:73%"></div><div class="blbl">Jum</div></div>
-          <div class="bw"><div class="bval">1.4M</div><div class="bar" style="height:93%"></div><div class="blbl">Sab</div></div>
-          <div class="bw"><div class="bval">950K</div><div class="bar" style="height:63%"></div><div class="blbl">Min</div></div>
-          <div class="bw"><div class="bval">1.2M</div><div class="bar hi" style="height:80%"></div><div class="blbl">Sen</div></div>
-        </div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px;" id="rep-chart-title">7 Hari Terakhir</div>
+        <div class="chart-bar" id="rep-chart-bars"></div>
       </div>
       <div class="spacer"></div>
       <div style="margin:0 14px;background:white;border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);">
@@ -701,7 +693,15 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
         <div class="ep-unit" id="ep-unit">per satuan</div>
       </div>
       <div class="edit-field">
-        <label class="e-label">&#x1F3A8; ICON / EMOJI PRODUK</label>
+        <label class="e-label">&#x1F5BC;&#xFE0F; FOTO / GAMBAR PRODUK</label>
+        <div id="prod-img-upload-area" style="border:2px dashed var(--primary);border-radius:12px;padding:14px;text-align:center;cursor:pointer;margin-bottom:8px;background:var(--primary-light);" onclick="document.getElementById('prod-img-file').click()">
+          <div id="prod-img-preview" style="font-size:13px;color:var(--primary);font-weight:600;">&#x1F4F7; Klik untuk upload foto produk</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">JPG/PNG/WebP • Max 500KB • Akan mengganti icon emoji</div>
+        </div>
+        <input type="file" id="prod-img-file" accept="image/*" style="display:none"/>
+      </div>
+      <div class="edit-field">
+        <label class="e-label">&#x1F3A8; ICON / EMOJI PRODUK <span style="font-size:10px;color:var(--muted);">(dipakai jika tidak ada foto)</span></label>
         <div class="emoji-grid" id="emoji-grid"></div>
         <input class="e-input" id="edit-icon" placeholder="Atau ketik emoji: &#x1F34E;"/>
       </div>
@@ -1077,7 +1077,10 @@ function openWhatsApp(){
 // ═══════════════════════════════════════════════
 function productCard(p){
   var badge=p.status==='available'?'<span class="stock-badge">Tersedia</span>':p.status==='low'?'<span class="stock-badge low">Sisa Sedikit</span>':'<span class="stock-badge empty">Habis</span>';
-  return '<div class="product-card" data-action="buy" data-id="'+p.id+'">'+badge+'<div class="prod-img">'+p.icon+'</div><div class="prod-name">'+p.name+'</div><div class="prod-desc">'+p.desc+'</div><div class="prod-price">'+fmtRp(p.price)+' <span>/'+p.unit+'</span></div><button class="add-btn" data-action="quickadd" data-id="'+p.id+'">+</button></div>';
+  var imgHtml = p.imgData
+    ? '<div class="prod-img"><img src="'+p.imgData+'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;"/></div>'
+    : '<div class="prod-img">'+p.icon+'</div>';
+  return '<div class="product-card" data-action="buy" data-id="'+p.id+'">'+badge+imgHtml+'<div class="prod-name">'+p.name+'</div><div class="prod-desc">'+p.desc+'</div><div class="prod-price">'+fmtRp(p.price)+' <span>/'+p.unit+'</span></div><button class="add-btn" data-action="quickadd" data-id="'+p.id+'">+</button></div>';
 }
 
 var currentCat = 'semua';
@@ -1128,7 +1131,10 @@ function renderStockList(){
   el.innerHTML=products.map(function(p){
     var pct=Math.min(100,Math.round(p.stock/60*100));
     var cls=p.stock<=5?'low':p.stock<=15?'mid':'';
-    return '<div class="stock-item"><div class="si-icon">'+p.icon+'</div><div class="si-info"><div class="si-name">'+p.name+'</div><div class="si-price">'+fmtRp(p.price)+'/'+p.unit+'</div><div class="si-qty">Stok: '+p.stock+' '+p.unit+(p.stock<=5?' \u26A0\uFE0F':'')+'</div><div class="prog-bar"><div class="prog-fill '+cls+'" style="width:'+pct+'%"></div></div></div><div class="si-actions"><button class="si-edit" data-action="edit" data-id="'+p.id+'">\u270F\uFE0F Edit</button><button class="si-del" data-action="del" data-id="'+p.id+'">\uD83D\uDDD1\uFE0F</button></div></div>';
+    var iconHtml = p.imgData
+      ? '<div class="si-icon"><img src="'+p.imgData+'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;"/></div>'
+      : '<div class="si-icon">'+p.icon+'</div>';
+    return '<div class="stock-item">'+iconHtml+'<div class="si-info"><div class="si-name">'+p.name+'</div><div class="si-price">'+fmtRp(p.price)+'/'+p.unit+'</div><div class="si-qty">Stok: '+p.stock+' '+p.unit+(p.stock<=5?' \u26A0\uFE0F':'')+'</div><div class="prog-bar"><div class="prog-fill '+cls+'" style="width:'+pct+'%"></div></div></div><div class="si-actions"><button class="si-edit" data-action="edit" data-id="'+p.id+'">\u270F\uFE0F Edit</button><button class="si-del" data-action="del" data-id="'+p.id+'">\uD83D\uDDD1\uFE0F</button></div></div>';
   }).join('');
   el.onclick=function(e){
     var b=e.target.closest('[data-action]'); if(!b) return;
@@ -1138,12 +1144,7 @@ function renderStockList(){
   };
 }
 
-function renderTopProds(){
-  var sales=[124,87,32,28,22,18,14,10];
-  setEl('top-prods',products.slice(0,4).map(function(p,i){
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;'+(i<3?'border-bottom:1px solid var(--border);':'')+'font-size:13px;"><span>'+p.icon+' '+p.name+'</span><span style="font-weight:700;color:var(--primary);">'+(sales[i]||10)+' terjual</span></div>';
-  }).join(''));
-}
+function renderTopProds(){ renderReport(); }
 
 // ═══════════════════════════════════════════════
 // ORDERS
@@ -1163,6 +1164,7 @@ function renderBuyerOrders(){
     var dot3=o.status==='delivering'?'current':o.status==='done'?'done':'';
     var dot4=o.status==='done'?'done':'';
     var cancelBtn=(o.status==='pending')?'<button class="danger-ghost-btn" data-action="cancel" data-id="'+o.id+'">\u274C Batal</button>':'';
+    var deleteBtn=(o.status==='done'||o.status==='cancelled')?'<button class="danger-ghost-btn" data-action="del-order" data-id="'+o.id+'" style="opacity:.7;">\uD83D\uDDD1 Hapus</button>':'';
     // Tombol konfirmasi terima barang — hanya muncul saat status delivering
     var terimaBtn=(o.status==='delivering')
       ?'<button style="background:linear-gradient(135deg,#38a169,#276749);color:white;border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;" data-action="terima" data-id="'+o.id+'">\u2705 Pesanan Diterima</button>'
@@ -1175,7 +1177,7 @@ function renderBuyerOrders(){
       +'<div class="oi-foot"><div class="oi-total">'+fmtRp(o.total)+'</div>'
       +'<div style="display:flex;gap:5px;flex-wrap:wrap;">'+trackBtn
       +'<button class="ghost-btn" data-action="struk" data-id="'+o.id+'">\uD83E\uDDFE Struk</button>'
-      +cancelBtn+'</div></div>'
+      +cancelBtn+deleteBtn+'</div></div>'
       +'<div id="track-'+o.id+'" style="display:none;">'
       +'<div class="track-wrap">'
       +'<div class="track-step"><div class="track-dot done">\u2705</div><div class="track-info"><h4>Pesanan Diterima</h4><p>'+o.time+'</p></div></div>'
@@ -1196,6 +1198,7 @@ function renderBuyerOrders(){
     if(action==='track') showTracking(id);
     else if(action==='struk') showStruk(id);
     else if(action==='cancel') cancelOrderBuyer(id);
+    else if(action==='del-order') deleteOrderBuyer(id);
     else if(action==='wa-buyer') openWhatsApp();
     else if(action==='terima') buyerConfirmReceived(id);
   };
@@ -1293,6 +1296,7 @@ function renderSellerOrders(){
     } else {
       actions='<div class="inc-actions">'
         +'<button class="ia-btn wa" data-action="wa" data-wa="'+o.buyerWa+'" data-name="'+o.buyerName+'">\uD83D\uDCF2 WA Pembeli</button>'
+        +'<button class="ia-btn reject" data-action="del-seller" data-id="'+o.id+'">\uD83D\uDDD1 Hapus</button>'
         +'</div>';
     }
     var noteHtml=o.note?'<div style="font-size:11px;color:var(--accent-dark);margin-bottom:4px;">\uD83D\uDCAC '+o.note+'</div>':'';
@@ -1314,8 +1318,143 @@ function renderSellerOrders(){
     var action=btn.dataset.action;
     if(action==='status') updateOrderStatus(btn.dataset.id, btn.dataset.status);
     else if(action==='wa') contactBuyer(btn.dataset.wa, btn.dataset.name);
+    else if(action==='del-seller') deleteOrderSeller(btn.dataset.id);
   };
   updateDashStats();
+}
+
+function deleteOrderBuyer(id){
+  if(!confirm('Hapus riwayat pesanan ini?')) return;
+  orders = orders.filter(function(o){ return o.id !== id; });
+  saveLS(); if(_db) _db.ref('orders/'+id).remove();
+  renderBuyerOrders(); updateDashStats();
+  showToast('\uD83D\uDDD1 Pesanan dihapus dari riwayat');
+}
+function deleteOrderSeller(id){
+  if(!confirm('Hapus pesanan ini dari daftar?')) return;
+  orders = orders.filter(function(o){ return o.id !== id; });
+  saveLS(); if(_db) _db.ref('orders/'+id).remove();
+  renderSellerOrders(); renderBuyerOrders(); updateDashStats();
+  showToast('\uD83D\uDDD1 Pesanan dihapus','warn');
+}
+
+// ═══════════════════════════════════════════════
+// LAPORAN DINAMIS (dari data nyata)
+// ═══════════════════════════════════════════════
+var currentPeriod = 'today';
+var DAYS_ID = ['\u0041\u0068\u0061\u0064','\u0053\u0065\u006E','\u0053\u0065\u006C','\u0052\u0061\u0062','\u004B\u0061\u006D','\u004A\u0075\u006D','\u0053\u0061\u0062'];
+
+function renderReport(){
+  var now = new Date();
+  var doneOrders = orders.filter(function(o){ return o.status === 'done'; });
+
+  function sameDay(d1,d2){ return d1.getFullYear()===d2.getFullYear()&&d1.getMonth()===d2.getMonth()&&d1.getDate()===d2.getDate(); }
+  function parseOrderDate(o){
+    // time format: "12 Mei 2026, 11.17"
+    try {
+      var t = o.time||''; var months={'Jan':0,'Feb':1,'Mar':2,'Apr':3,'Mei':4,'Jun':5,'Jul':6,'Agu':7,'Sep':8,'Okt':9,'Nov':10,'Des':11};
+      var parts = t.split(','); var dp = parts[0].trim().split(' ');
+      var tp = (parts[1]||'').trim().replace('.',':').split(':');
+      var d = new Date(parseInt(dp[2]),months[dp[1]]||0,parseInt(dp[0]),parseInt(tp[0])||0,parseInt(tp[1])||0);
+      return isNaN(d.getTime()) ? now : d;
+    } catch(e){ return now; }
+  }
+
+  var filtered, periodLabel, chartTitle;
+  if(currentPeriod === 'today'){
+    filtered = doneOrders.filter(function(o){ return sameDay(parseOrderDate(o), now); });
+    periodLabel = 'Total Pendapatan \u2014 Hari Ini';
+    chartTitle = 'Per Jam Hari Ini';
+  } else if(currentPeriod === '7days'){
+    var d7 = new Date(now); d7.setDate(d7.getDate()-6); d7.setHours(0,0,0,0);
+    filtered = doneOrders.filter(function(o){ return parseOrderDate(o) >= d7; });
+    periodLabel = 'Total Pendapatan \u2014 7 Hari Terakhir';
+    chartTitle = '7 Hari Terakhir';
+  } else {
+    filtered = doneOrders.filter(function(o){ var d=parseOrderDate(o); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
+    var bulanNama=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    periodLabel = 'Total Pendapatan \u2014 '+bulanNama[now.getMonth()]+' '+now.getFullYear();
+    chartTitle = 'Bulan Ini (per Minggu)';
+  }
+
+  var totalIncome = filtered.reduce(function(s,o){ return s+o.total; }, 0);
+  var totalTx = filtered.length;
+  setEl('rep-period-label', periodLabel);
+  setEl('rep-total-income', fmtRp(totalIncome));
+  setEl('rep-meta', '\uD83D\uDCE6 '+totalTx+' Transaksi \u2022 \u2B50 4.9 Rating');
+  setEl('rep-chart-title', chartTitle);
+
+  // Build chart
+  var chartData = [];
+  if(currentPeriod === 'today'){
+    for(var h=0;h<24;h+=3){
+      var hv=filtered.filter(function(o){ var d=parseOrderDate(o); return d.getHours()>=h&&d.getHours()<h+3; }).reduce(function(s,o){return s+o.total;},0);
+      chartData.push({label:(h<10?'0':'')+h+'.'+(h===0?'00':'00'), val:hv});
+    }
+    // Trim trailing zeros
+    while(chartData.length>2 && chartData[chartData.length-1].val===0) chartData.pop();
+  } else if(currentPeriod === '7days'){
+    for(var i=6;i>=0;i--){
+      var day=new Date(now); day.setDate(day.getDate()-i); day.setHours(0,0,0,0);
+      var dayEnd=new Date(day); dayEnd.setDate(dayEnd.getDate()+1);
+      var dv=doneOrders.filter(function(o){ var d=parseOrderDate(o); return d>=day&&d<dayEnd; }).reduce(function(s,o){return s+o.total;},0);
+      chartData.push({label:DAYS_ID[day.getDay()], val:dv, today:sameDay(day,now)});
+    }
+  } else {
+    for(var w=0;w<5;w++){
+      var wStart=new Date(now.getFullYear(),now.getMonth(),1+w*7);
+      var wEnd=new Date(now.getFullYear(),now.getMonth(),1+(w+1)*7);
+      if(wStart.getMonth()!==now.getMonth()) break;
+      var wv=filtered.filter(function(o){ var d=parseOrderDate(o); return d>=wStart&&d<wEnd; }).reduce(function(s,o){return s+o.total;},0);
+      chartData.push({label:'Mg'+(w+1), val:wv});
+    }
+  }
+
+  var maxVal = Math.max.apply(null, chartData.map(function(d){return d.val;}))||1;
+  function fmtK(v){ return v>=1000000?(v/1000000).toFixed(1).replace('.0','')+'M':v>=1000?Math.round(v/1000)+'K':v||'-'; }
+  var barsHtml = chartData.map(function(d){
+    var pct = Math.max(4, Math.round((d.val/maxVal)*95));
+    return '<div class="bw"><div class="bval">'+fmtK(d.val)+'</div><div class="bar'+(d.today?' hi':'')+(d.val===0?' empty':'')+'" style="height:'+pct+'%"></div><div class="blbl">'+d.label+'</div></div>';
+  }).join('');
+  setEl('rep-chart-bars', barsHtml || '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Belum ada data</div>');
+
+  // Top produk dari data nyata
+  var salesMap = {};
+  orders.filter(function(o){ return o.status==='done'; }).forEach(function(o){
+    if(!o.items) return;
+    o.items.forEach(function(item){
+      salesMap[item.id] = (salesMap[item.id]||0) + item.qty;
+    });
+  });
+  var topProds = products.slice().sort(function(a,b){ return (salesMap[b.id]||0)-(salesMap[a.id]||0); }).slice(0,5);
+  var colors = ['#22c55e','#3b82f6','#f59e0b','#8b5cf6','#ef4444'];
+  setEl('top-prods', topProds.length ? topProds.map(function(p,i){
+    var sold = salesMap[p.id]||0;
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;'+(i<topProds.length-1?'border-bottom:1px solid var(--border);':'')+'font-size:13px;">'
+      +'<span><span style="color:'+colors[i]+';font-size:16px;">&#x25CF;</span> '+p.name+'</span>'
+      +'<span style="font-weight:700;color:var(--primary);">'+sold+' terjual</span></div>';
+  }).join('') : '<div style="text-align:center;padding:20px;color:var(--muted);">Belum ada penjualan</div>');
+}
+
+// ═══════════════════════════════════════════════
+// UPLOAD FOTO PRODUK
+// ═══════════════════════════════════════════════
+var currentProductImg = null; // base64 atau null
+
+function initProdImgUpload(){
+  var inp = $('prod-img-file'); if(!inp) return;
+  inp.onchange = function(e){
+    var file = e.target.files[0]; if(!file) return;
+    if(file.size > 600000){ showToast('Foto terlalu besar! Max 500KB','warn'); return; }
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      currentProductImg = ev.target.result;
+      var prev = $('prod-img-preview');
+      prev.innerHTML = '<img src="'+currentProductImg+'" style="max-height:100px;max-width:100%;border-radius:10px;display:block;margin:0 auto;"/><div style="margin-top:6px;font-size:11px;color:var(--primary);font-weight:600;">\u2705 Foto dipilih &mdash; Klik untuk ganti</div>';
+      setEl('ep-icon','<img src="'+currentProductImg+'" style="width:56px;height:56px;object-fit:cover;border-radius:12px;"/>');
+    };
+    reader.readAsDataURL(file);
+  };
 }
 
 function updateOrderStatus(id,status){
@@ -1665,6 +1804,9 @@ function openAddProduct(){
   $('edit-icon').value='📦'; $('edit-name').value=''; $('edit-desc').value='';
   $('edit-price').value=''; $('edit-unit').value=''; $('edit-stock').value='10'; $('edit-status').value='available';
   setEl('ep-icon','📦'); setTxt('ep-name','Nama Produk'); setTxt('ep-price','Rp 0'); setTxt('ep-unit','per satuan');
+  currentProductImg = null;
+  $('prod-img-preview').innerHTML = '\uD83D\uDCF7 Klik untuk upload foto produk';
+  if($('prod-img-file')) $('prod-img-file').value='';
   document.querySelectorAll('.eo').forEach(function(el){el.classList.remove('sel');});
   $('edit-overlay').classList.add('open');
 }
@@ -1673,7 +1815,17 @@ function openEditProduct(id){
   editingId=id; setTxt('edit-title','\u270F\uFE0F Edit: '+p.name); $('del-btn').style.display='block';
   $('edit-icon').value=p.icon; $('edit-name').value=p.name; $('edit-desc').value=p.desc;
   $('edit-price').value=p.price; $('edit-unit').value=p.unit; $('edit-stock').value=p.stock; $('edit-status').value=p.status;
-  setEl('ep-icon',p.icon); setTxt('ep-name',p.name); setTxt('ep-price',fmtRp(p.price)); setTxt('ep-unit','per '+p.unit);
+  // Handle foto
+  currentProductImg = p.imgData || null;
+  var prev = $('prod-img-preview');
+  if(currentProductImg){
+    prev.innerHTML = '<img src="'+currentProductImg+'" style="max-height:90px;max-width:100%;border-radius:10px;display:block;margin:0 auto;"/><div style="margin-top:5px;font-size:11px;color:var(--primary);">\u2705 Ada foto \u2014 Klik untuk ganti</div>';
+    setEl('ep-icon','<img src="'+currentProductImg+'" style="width:56px;height:56px;object-fit:cover;border-radius:12px;"/>');
+  } else {
+    prev.innerHTML = '\uD83D\uDCF7 Klik untuk upload foto produk';
+    setEl('ep-icon', p.icon);
+  }
+  if($('prod-img-file')) $('prod-img-file').value='';
   document.querySelectorAll('.eo').forEach(function(el){el.classList.toggle('sel',el.dataset.e===p.icon);});
   $('edit-overlay').classList.add('open');
 }
@@ -1683,13 +1835,14 @@ function saveProduct(){
   var price=parseInt($('edit-price').value)||0; if(!price){showToast('\u26A0\uFE0F Harga wajib diisi!','warn');return;}
   var desc=$('edit-desc').value.trim(), unit=$('edit-unit').value.trim()||'pcs';
   var stock=parseInt($('edit-stock').value)||0, status=$('edit-status').value;
+  var imgData = currentProductImg || null;
   if(editingId){
     var i=products.findIndex(function(x){return x.id===editingId;});
-    if(i>=0) products[i]=Object.assign({},products[i],{icon:icon,name:name,desc:desc,price:price,unit:unit,stock:stock,status:status});
+    if(i>=0) products[i]=Object.assign({},products[i],{icon:icon,name:name,desc:desc,price:price,unit:unit,stock:stock,status:status,imgData:imgData});
     showToast('\u2705 Produk diupdate!');
   } else {
     var nid=products.length?Math.max.apply(null,products.map(function(x){return x.id;}))+1:1;
-    products.push({id:nid,icon:icon,name:name,desc:desc,price:price,unit:unit,stock:stock,status:status});
+    products.push({id:nid,icon:icon,name:name,desc:desc,price:price,unit:unit,stock:stock,status:status,imgData:imgData});
     showToast('\u2705 Produk baru ditambahkan!');
   }
   $('edit-overlay').classList.remove('open');
@@ -1966,6 +2119,19 @@ document.addEventListener('DOMContentLoaded', function(){
       renderBuyerGrid();
     });
   });
+
+  // Period filter (laporan)
+  document.querySelectorAll('.per-pill[data-period]').forEach(function(pill){
+    pill.addEventListener('click', function(){
+      currentPeriod = this.dataset.period;
+      document.querySelectorAll('.per-pill').forEach(function(p){ p.classList.remove('active'); });
+      this.classList.add('active');
+      renderReport();
+    });
+  });
+
+  // Upload foto produk
+  initProdImgUpload();
 
   loadLS();
   initFirebase(); // ← sambung Firebase realtime
