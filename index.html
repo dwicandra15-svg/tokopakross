@@ -1606,38 +1606,67 @@ function saveStoreSettings(){
 // NAV
 // ═══════════════════════════════════════════════
 function enterApp(mode){
+  // Bersihkan semua section dulu
+  ['home','catalog','cart','orders','profile','dashboard','stock','report','seller-profile'].forEach(function(s){
+    var el=$('sec-'+s); if(el) el.classList.remove('active');
+  });
   $('splash').style.opacity='0';
-  setTimeout(function(){ $('splash').style.display='none'; $('app').classList.add('active'); setMode(mode); },400);
+  setTimeout(function(){
+    $('splash').style.display='none';
+    $('app').classList.add('active');
+    setMode(mode);
+  }, 400);
 }
+var BUYER_SECS  = ['home','catalog','cart','orders','profile'];
+var SELLER_SECS = ['dashboard','stock','report','seller-profile'];
+
 function setMode(mode){
-  currentMode=mode; var b=mode==='buyer';
-  setTxt('mode-label',b?'🛍\uFE0F Pembeli':'🏪 Penjual');
-  $('nav-buyer').style.display=b?'flex':'none';
-  $('nav-seller').style.display=b?'none':'flex';
-  $('cart-btn').style.display=b?'flex':'none';
-  if(b) switchNav('home'); else switchNavSeller('dashboard');
+  currentMode = mode;
+  var isBuyer = mode === 'buyer';
+
+  // Sembunyikan SEMUA section dulu
+  BUYER_SECS.concat(SELLER_SECS).forEach(function(s){
+    var el = $('sec-'+s); if(el) el.classList.remove('active');
+  });
+
+  // Tampilkan nav yang sesuai
+  setTxt('mode-label', isBuyer ? '\uD83D\uDECD\uFE0F Pembeli' : '\uD83C\uDFEA Penjual');
+  $('nav-buyer').style.display  = isBuyer ? 'flex' : 'none';
+  $('nav-seller').style.display = isBuyer ? 'none' : 'flex';
+  $('cart-btn').style.display   = isBuyer ? 'flex' : 'none';
+
+  if(isBuyer) switchNav('home');
+  else        switchNavSeller('dashboard');
 }
+
 function switchNav(name){
-  ['home','catalog','cart','orders','profile'].forEach(function(s){
-    var e=$('sec-'+s); if(e) e.classList.remove('active');
-    var n=$('nb-'+s); if(n) n.classList.remove('active');
+  // Sembunyikan semua buyer section
+  BUYER_SECS.forEach(function(s){
+    var el=$('sec-'+s); if(el) el.classList.remove('active');
+    var nb=$('nb-'+s); if(nb) nb.classList.remove('active');
   });
   var t=$('sec-'+name); if(t) t.classList.add('active');
-  var n=$('nb-'+name); if(n) n.classList.add('active');
-  if(name==='cart') renderCart();
+  var nb=$('nb-'+name); if(nb) nb.classList.add('active');
+  if(name==='cart')   renderCart();
   if(name==='orders') renderBuyerOrders();
-  document.querySelector('.content').scrollTop=0;
+  var c=document.querySelector('.content'); if(c) c.scrollTop=0;
 }
+
 function switchNavSeller(name){
-  ['dashboard','stock','report','seller-profile'].forEach(function(s){var e=$('sec-'+s);if(e)e.classList.remove('active');});
-  ['dashboard','stock','report','profile'].forEach(function(k){var n=$('ns-'+k);if(n)n.classList.remove('active');});
+  // Sembunyikan semua seller section
+  SELLER_SECS.forEach(function(s){
+    var el=$('sec-'+s); if(el) el.classList.remove('active');
+  });
+  ['dashboard','stock','report','profile'].forEach(function(k){
+    var nb=$('ns-'+k); if(nb) nb.classList.remove('active');
+  });
   var t=$('sec-'+name); if(t) t.classList.add('active');
   var map={'dashboard':'dashboard','stock':'stock','report':'report','seller-profile':'profile'};
   var nb=$('ns-'+(map[name]||name)); if(nb) nb.classList.add('active');
-  if(name==='stock') renderStockList();
-  if(name==='report') renderTopProds();
+  if(name==='stock')     renderStockList();
+  if(name==='report')    renderTopProds();
   if(name==='dashboard'){ renderSellerOrders(); updateNotifStatusBar(); }
-  document.querySelector('.content').scrollTop=0;
+  var c=document.querySelector('.content'); if(c) c.scrollTop=0;
 }
 function switchMode(){
   if(currentMode==='buyer') showLoginModal(); else { setMode('buyer'); showToast('🛍\uFE0F Mode Pembeli aktif'); }
