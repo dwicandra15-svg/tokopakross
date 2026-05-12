@@ -1418,21 +1418,27 @@ function renderReport(){
   }).join('');
   setEl('rep-chart-bars', barsHtml || '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Belum ada data</div>');
 
-  // Top produk dari data nyata
+  // Top produk dari data nyata (pakai cartSnapshot)
   var salesMap = {};
   orders.filter(function(o){ return o.status==='done'; }).forEach(function(o){
-    if(!o.items) return;
-    o.items.forEach(function(item){
-      salesMap[item.id] = (salesMap[item.id]||0) + item.qty;
+    var snap = o.cartSnapshot || o.items || [];
+    snap.forEach(function(item){
+      var key = item.id || item.name;
+      salesMap[key] = (salesMap[key]||0) + (item.qty||1);
     });
   });
-  var topProds = products.slice().sort(function(a,b){ return (salesMap[b.id]||0)-(salesMap[a.id]||0); }).slice(0,5);
+  // Map by id dulu, fallback by name
+  var topProds = products.slice().sort(function(a,b){
+    var sa = salesMap[a.id] || salesMap[a.name] || 0;
+    var sb = salesMap[b.id] || salesMap[b.name] || 0;
+    return sb - sa;
+  }).slice(0,5);
   var colors = ['#22c55e','#3b82f6','#f59e0b','#8b5cf6','#ef4444'];
   setEl('top-prods', topProds.length ? topProds.map(function(p,i){
-    var sold = salesMap[p.id]||0;
+    var sold = salesMap[p.id] || salesMap[p.name] || 0;
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;'+(i<topProds.length-1?'border-bottom:1px solid var(--border);':'')+'font-size:13px;">'
       +'<span><span style="color:'+colors[i]+';font-size:16px;">&#x25CF;</span> '+p.name+'</span>'
-      +'<span style="font-weight:700;color:var(--primary);">'+sold+' terjual</span></div>';
+      +'<span style="font-weight:700;color:'+(sold>0?'var(--primary)':'var(--muted)')+';">'+sold+' terjual</span></div>';
   }).join('') : '<div style="text-align:center;padding:20px;color:var(--muted);">Belum ada penjualan</div>');
 }
 
@@ -1652,8 +1658,27 @@ function openNotifPanel(){
 }
 function closeNotifPanel(){ $('notif-panel').classList.remove('open'); $('notif-scrim').style.display='none'; }
 function renderNotifList(){
-  if(!notifications.length){setEl('notif-list','<div class="notif-empty"><div class="ne-icon">🔕</div><p>Belum ada notifikasi</p></div>');return;}
-  setEl('notif-list',notifications.map(function(n){return '<div class="notif-item '+(n.type||'')+' '+(n.unread?'unread':'')+'"><div class="ni-title">'+n.title+'</div><div class="ni-body">'+n.body+'</div><div class="ni-time">🕐 '+n.time+'</div></div>';}).join(''));
+  if(!notifications.length){
+    setEl('notif-list','<div class="notif-empty"><div class="ne-icon">\uD83D\uDD15</div><p>Belum ada notifikasi</p></div>');
+    return;
+  }
+  var html = notifications.map(function(n, idx){
+    return '<div class="notif-item '+(n.type||'')+' '+(n.unread?'unread':'')+'" style="position:relative;padding-right:40px;">'
+      +'<div class="ni-title">'+n.title+'</div>'
+      +'<div class="ni-body">'+n.body+'</div>'
+      +'<div class="ni-time">\uD83D\uDD50 '+n.time+'</div>'
+      +'<button data-action="del-notif" data-idx="'+idx+'" style="position:absolute;top:8px;right:8px;background:#fee2e2;border:none;border-radius:8px;width:28px;height:28px;font-size:13px;cursor:pointer;color:#dc2626;">\uD83D\uDDD1</button>'
+      +'</div>';
+  }).join('');
+  var el = $('notif-list');
+  el.innerHTML = html;
+  el.onclick = function(e){
+    var btn = e.target.closest('[data-action="del-notif"]');
+    if(!btn) return;
+    var idx = parseInt(btn.dataset.idx);
+    notifications.splice(idx, 1);
+    saveLS(); updateNotifBadge(); renderNotifList();
+  };
 }
 
 // ═══════════════════════════════════════════════
