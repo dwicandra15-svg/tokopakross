@@ -670,6 +670,9 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
     <div class="bs-handle"></div>
     <div class="bs-body">
       <div class="bs-title">&#x1F4CB; Data Pengiriman</div>
+      <div id="co-profile-hint" style="background:#e8f5e9;border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:12px;color:#2e7d32;display:flex;align-items:center;gap:7px;">
+        <span>&#x2705;</span><span>Data diisi otomatis dari profil Anda. Bisa diubah jika perlu.</span>
+      </div>
       <label class="f-label">&#x1F464; NAMA LENGKAP</label>
       <input class="f-input" id="co-name" placeholder="Contoh: Ibu Sari"/>
       <label class="f-label">&#x1F4CD; ALAMAT LENGKAP</label>
@@ -891,33 +894,80 @@ function saveOrderFB(o){
 
 // Dengarkan perubahan realtime
 function listenOrders(){
-  fbListen('orders', function(data){
-    if(!data) return;
-    var fbOrders = Object.values(data);
-    var changed = false;
-    fbOrders.forEach(function(fo){
-      var existing = orders.find(function(o){ return o.id === fo.id; });
-      if(existing){
-        var statusChanged = existing.status !== fo.status;
-        existing.status = fo.status;
-        if(fo.doneTime) existing.doneTime = fo.doneTime;
-        if(statusChanged && currentMode==='seller' && fo.status==='pending'){
-          playOrderAlarm();
-          sendBrowserNotif('\uD83D\uDED2 Pesanan Baru!', fo.id+' \u2014 '+fo.buyerName+' \u2014 '+fmtRp(fo.total));
-          addNotifSilent({title:'\uD83D\uDED2 Pesanan Baru!', body:fo.id+' \u2014 '+fo.buyerName+' \u2014 '+fmtRp(fo.total), type:'order'});
+  if(!_db) return;
+
+  // Step 1: Load semua pesanan existing DULU (sekali)
+  _db.ref('orders').once('value', function(snap){
+    var data = snap.val();
+    var existingIds = {};
+    if(data){
+      var existing = Array.isArray(data) ? data.filter(Boolean) : Object.values(data);
+      existing.forEach(function(fo){
+        if(fo && fo.id){
+          existingIds[fo.id] = true;
+          if(!orders.find(function(o){ return o.id===fo.id; })){
+            orders.push(fo);
+          }
         }
-        changed = true;
+      });
+      renderBuyerOrders(); renderSellerOrders(); updateDashStats();
+    }
+
+    // Step 2: Pasang child_added — hanya proses yang ID-nya belum ada
+    _db.ref('orders').on('child_added', function(snap){
+      var fo = snap.val();
+      if(!fo || !fo.id) return;
+      if(existingIds[fo.id]) return; // sudah ada dari initial load, abaikan
+      existingIds[fo.id] = true;
+      orders.push(fo);
+      renderBuyerOrders(); renderSellerOrders(); updateDashStats();
+      // Ini pesanan benar-benar baru dari device lain — notif + alarm ke penjual
+      if(fo.status === 'pending' && currentMode === 'seller'){
+        _lastNotifiedPendingIds[fo.id] = true;
+        playOrderAlarm();
+        sendBrowserNotif('🛒 Pesanan Baru Masuk!', fo.id+' — '+fo.buyerName+' ('+fo.buyerWa+') — '+fmtRp(fo.total));
+        addNotif({title:'🛒 Pesanan Baru Masuk!', body: fo.id+' — '+fo.buyerName+' ('+fo.buyerWa+') — '+fmtRp(fo.total), type:'order'});
+      }
+    });
+
+    // Step 3: Dengarkan perubahan STATUS
+    _db.ref('orders').on('child_changed', function(snap){
+      var fo = snap.val();
+      if(!fo || !fo.id) return;
+      var existing3 = orders.find(function(o){ return o.id === fo.id; });
+      if(existing3){
+        var oldStatus = existing3.status;
+        existing3.status = fo.status;
+        if(fo.doneTime) existing3.doneTime = fo.doneTime;
+
+        if(oldStatus !== fo.status){
+          // Notif ke penjual jika ada pesanan pending baru dari device lain
+          if(fo.status === 'pending' && currentMode === 'seller'){
+            playOrderAlarm();
+            sendBrowserNotif('🛒 Pesanan Baru!', fo.id+' — '+fo.buyerName+' — '+fmtRp(fo.total));
+            addNotif({title:'🛒 Pesanan Baru!', body: fo.id+' — '+fo.buyerName+' — '+fmtRp(fo.total), type:'order'});
+          }
+          // Notif ke pembeli jika status pesanannya berubah
+          if(currentMode === 'buyer'){
+            var statusMsg = {
+              confirmed: '✅ Pesanan '+fo.id+' dikonfirmasi!',
+              delivering: '🚚 Pesanan '+fo.id+' sedang diantar!',
+              done: '🎉 Pesanan '+fo.id+' selesai!',
+              cancelled: '❌ Pesanan '+fo.id+' dibatalkan.'
+            }[fo.status];
+            if(statusMsg) addNotif({title: statusMsg, body: fo.itemsLabel+' — '+fmtRp(fo.total), type:''});
+          }
+        }
+        renderBuyerOrders(); renderSellerOrders(); updateDashStats();
       } else {
-        orders.push(fo);
-        changed = true;
-        if(currentMode==='seller'){
-          playOrderAlarm();
-          sendBrowserNotif('\uD83D\uDED2 Pesanan Baru!', fo.id+' \u2014 '+fo.buyerName+' \u2014 '+fmtRp(fo.total));
-          addNotifSilent({title:'\uD83D\uDED2 Pesanan Baru!', body:fo.id+' \u2014 '+fo.buyerName+' \u2014 '+fmtRp(fo.total), type:'order'});
+        // Pesanan baru yang belum ada di lokal (edge case)
+        if(!existingIds[fo.id]){
+          existingIds[fo.id] = true;
+          orders.push(fo);
+          renderBuyerOrders(); renderSellerOrders(); updateDashStats();
         }
       }
     });
-    if(changed){ renderBuyerOrders(); renderSellerOrders(); updateDashStats(); }
   });
 }
 function listenProducts(){
@@ -1300,6 +1350,21 @@ function updateDashStats(){
   else{nb.style.display='none';nsd.classList.remove('show');}
 }
 
+// Cek pesanan pending saat masuk mode penjual (dari device lain)
+var _lastNotifiedPendingIds = {};
+function checkPendingOrdersOnLogin(){
+  var pendingOrders = orders.filter(function(o){ return o.status==='pending'; });
+  if(pendingOrders.length === 0) return;
+  pendingOrders.forEach(function(o){
+    if(!_lastNotifiedPendingIds[o.id]){
+      _lastNotifiedPendingIds[o.id] = true;
+      addNotif({title:'🛒 Pesanan Menunggu!', body: o.id+' — '+o.buyerName+' ('+o.buyerWa+') — '+fmtRp(o.total), type:'order'});
+    }
+  });
+  playOrderAlarm();
+  showToast('🔔 Ada '+pendingOrders.length+' pesanan menunggu konfirmasi!');
+}
+
 // ═══════════════════════════════════════════════
 // ALARM SOUND (Web Audio API — no file needed)
 // ═══════════════════════════════════════════════
@@ -1518,8 +1583,30 @@ function openCheckout(){
   var ongkir=0; var total=sub;
   var lbl=cart.map(function(i){var p=products.find(function(x){return x.id===i.id;});return p?p.name+' x'+i.qty:'';}).filter(Boolean).join(', ');
   setEl('co-summary','<strong>Ringkasan:</strong><br>'+lbl+'<br><br><span style="color:var(--muted)">Pengiriman: </span>'+(pickupMode==='antar'?'🚚 Antar':'🚶 Ambil Sendiri')+'<br><span style="color:var(--muted)">Total: </span><strong style="color:var(--primary)">'+fmtRp(total)+'</strong>');
-  $('co-name').value=''; $('co-addr').value=''; $('co-wa').value=''; $('co-note').value='';
+  // Auto-isi dari data profil pembeli
+  var profileName = (buyerProfile.name && buyerProfile.name !== 'Pelanggan Setia') ? buyerProfile.name : '';
+  var profilePhone = buyerProfile.phone || '';
+  // Ambil alamat utama (isDefault), atau alamat pertama jika tidak ada
+  var defaultAddr = addresses.find(function(a){ return a.isDefault; }) || addresses[0];
+  var profileAddr = defaultAddr ? defaultAddr.addr : '';
+  $('co-name').value = profileName;
+  $('co-addr').value = profileAddr;
+  $('co-wa').value = profilePhone;
+  $('co-note').value = '';
   ['co-name','co-addr','co-wa'].forEach(function(id){$(id).classList.remove('error');});
+  // Update hint banner sesuai kelengkapan profil
+  var hint = $('co-profile-hint');
+  if(hint){
+    if(profileName && profilePhone && profileAddr){
+      hint.style.display='flex';
+      hint.innerHTML='<span>&#x2705;</span><span>Data diisi otomatis dari profil Anda. Bisa diubah jika perlu.</span>';
+      hint.style.background='#e8f5e9'; hint.style.color='#2e7d32';
+    } else {
+      hint.style.display='flex';
+      hint.innerHTML='<span>&#x26A0;&#xFE0F;</span><span>Profil belum lengkap. Isi dulu atau lengkapi di menu <strong>Profil</strong>.</span>';
+      hint.style.background='#fff8e1'; hint.style.color='#e65100';
+    }
+  }
   $('checkout-overlay').classList.add('open');
 }
 function closeCheckout(){ $('checkout-overlay').classList.remove('open'); }
@@ -1540,7 +1627,10 @@ function submitOrder(){
   orders.push(order); cart=[]; updateCartBadge(); closeCheckout(); renderCart();
   saveLS();
   saveOrderFB(order); // ← sync ke Firebase realtime
-  addNotif({title:'\uD83D\uDED2 Pesanan Baru Masuk!',body:order.id+' \u2014 '+name+' ('+wa+') \u2014 '+fmtRp(total),type:'order'});
+
+  // Notif untuk PENJUAL (selalu masuk ke antrian notif, apapun mode saat ini)
+  addNotif({title:'🛒 Pesanan Baru Masuk!', body: order.id+' — '+name+' ('+wa+') — '+fmtRp(total), type:'order'});
+
   renderSellerOrders(); renderBuyerOrders(); updateDashStats();
   showToast('\uD83C\uDF89 Pesanan berhasil dikirim!');
   setTimeout(function(){switchNav('orders');setTimeout(function(){showStruk(order.id);},300);},1200);
@@ -1750,6 +1840,8 @@ function doLogin(){
         });
         // Unlock audio context on first user interaction after login
         getAudioCtx();
+        // Cek pesanan pending yang sudah masuk sebelum login
+        setTimeout(function(){ checkPendingOrdersOnLogin(); }, 2000);
       },400);
     },900);
   } else {
