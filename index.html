@@ -428,10 +428,10 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
       </div>
       <div class="section-title">Kategori Produk</div>
       <div class="cat-scroll">
-        <div class="cat-pill active">&#x1F525; Semua</div>
-        <div class="cat-pill">&#x1F7E2; LPG / Gas</div>
-        <div class="cat-pill">&#x1F4A7; Air Galon</div>
-        <div class="cat-pill">&#x1F4E6; Sembako</div>
+        <div class="cat-pill active" data-cat="semua">&#x1F525; Semua</div>
+        <div class="cat-pill" data-cat="lpg">&#x1F7E2; LPG / Gas</div>
+        <div class="cat-pill" data-cat="galon">&#x1F4A7; Air Galon</div>
+        <div class="cat-pill" data-cat="sembako">&#x1F4E6; Sembako</div>
       </div>
       <div class="section-title">Produk Unggulan</div>
       <div class="product-grid" id="home-grid"></div>
@@ -446,10 +446,10 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
     <div class="section" id="sec-catalog">
       <div class="section-title">&#x1F4E6; Semua Produk</div>
       <div class="cat-scroll">
-        <div class="cat-pill active">&#x1F525; Semua</div>
-        <div class="cat-pill">&#x1F7E2; LPG / Gas</div>
-        <div class="cat-pill">&#x1F4A7; Air Galon</div>
-        <div class="cat-pill">&#x1F4E6; Sembako</div>
+        <div class="cat-pill active" data-cat="semua">&#x1F525; Semua</div>
+        <div class="cat-pill" data-cat="lpg">&#x1F7E2; LPG / Gas</div>
+        <div class="cat-pill" data-cat="galon">&#x1F4A7; Air Galon</div>
+        <div class="cat-pill" data-cat="sembako">&#x1F4E6; Sembako</div>
       </div>
       <div class="spacer"></div>
       <div class="product-grid" id="catalog-grid"></div>
@@ -840,26 +840,32 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- Firebase Compat CDN — bekerja sebagai script global, tidak perlu module -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<!-- Firebase Compat CDN -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <script>
 // ═══════════════════════════════════════════════
 // FIREBASE INIT
 // ═══════════════════════════════════════════════
 var _db = null;
+var _firebaseReady = false;
 try {
-  firebase.initializeApp({
-    apiKey: "AIzaSyCZw8riZtEMpwzqi11OwGUhwssXUDujyQM",
-    authDomain: "tokopakross.firebaseapp.com",
-    databaseURL: "https://tokopakross-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "tokopakross",
-    storageBucket: "tokopakross.firebasestorage.app",
-    messagingSenderId: "576221899434",
-    appId: "1:576221899434:web:c3722607c554d8c65b7ed3"
-  });
-  _db = firebase.database();
+  if(typeof firebase !== 'undefined') {
+    firebase.initializeApp({
+      apiKey: "AIzaSyCZw8riZtEMpwzqi11OwGUhwssXUDujyQM",
+      authDomain: "tokopakross.firebaseapp.com",
+      databaseURL: "https://tokopakross-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "tokopakross",
+      storageBucket: "tokopakross.firebasestorage.app",
+      messagingSenderId: "576221899434",
+      appId: "1:576221899434:web:c3722607c554d8c65b7ed3"
+    });
+    _db = firebase.database();
+    _firebaseReady = true;
+  } else {
+    console.warn('Firebase SDK tidak tersedia, mode offline aktif.');
+  }
 } catch(e){ console.warn('Firebase tidak tersedia:', e.message); }
 
 // ═══════════════════════════════════════════════
@@ -936,15 +942,6 @@ function addNotifSilent(n){
   btn.classList.add('ring');
   setTimeout(function(){ btn.classList.remove('ring'); }, 2000);
 }
-function initFirebase(){
-  if(!_db) return;
-  fbGet('storeInfo').then(function(d){ if(!d) fbSet('storeInfo', storeInfo); });
-  fbGet('products').then(function(d){ if(!d) fbSet('products', products); });
-  listenOrders();
-  listenProducts();
-  listenStoreInfo();
-}
-
 // ═══════════════════════════════════════════════
 // DATA
 // ═══════════════════════════════════════════════
@@ -973,7 +970,7 @@ var cart = [];
 var modalProductId = null;
 var modalQty = 1;
 var editingId = null;
-var deliveryMode = 'antar';
+var pickupMode = 'antar';
 
 var EMOJIS = ['🟢','🔵','🟡','🟠','🔴','🟤','\u26AB','\u26AA','💧','🌾','🫙','🍚','🥚','🧴','🧺','📦','🥛','🍞','🧂','🫒','🥩','🐟','🍗','🌽','🥕','🥔','🧅','🧄','🍋','🍊','🧃','🍵','\u2615','🥤'];
 var LOGOS  = ['🛒','🏪','🏬','🏭','\u2B50','🌟','💛','🔑','🎯','🚀','💎','🌈','🔥','💡','🏆','🎪','🌺','🦁','🐯','🦅','🌴','🍀','\u26A1','🎁','🛵','🚚','📦','💰','🏅','🌙','\u2600\uFE0F','🌊','🍃'];
@@ -1017,6 +1014,15 @@ function applyStore(){
 }
 
 // ═══════════════════════════════════════════════
+// WHATSAPP
+// ═══════════════════════════════════════════════
+function openWhatsApp(){
+  var w=storeInfo.wa.replace(/[^0-9]/g,'');
+  var n=w.startsWith('0')?'62'+w.slice(1):w;
+  window.open('https://wa.me/'+n,'_blank');
+}
+
+// ═══════════════════════════════════════════════
 // PRODUCT CARD
 // ═══════════════════════════════════════════════
 function productCard(p){
@@ -1024,8 +1030,26 @@ function productCard(p){
   return '<div class="product-card" data-action="buy" data-id="'+p.id+'">'+badge+'<div class="prod-img">'+p.icon+'</div><div class="prod-name">'+p.name+'</div><div class="prod-desc">'+p.desc+'</div><div class="prod-price">'+fmtRp(p.price)+' <span>/'+p.unit+'</span></div><button class="add-btn" data-action="quickadd" data-id="'+p.id+'">+</button></div>';
 }
 
+var currentCat = 'semua';
+var CAT_MAP = {
+  'semua': null,
+  'lpg': ['LPG','Gas','Bright'],
+  'galon': ['Galon','Air'],
+  'sembako': ['Beras','Minyak','Gula','Telur','Sembako','Tepung','Garam']
+};
+
+function filterProducts(cat){
+  if(!cat || cat==='semua') return products;
+  var keywords = CAT_MAP[cat];
+  if(!keywords) return products;
+  return products.filter(function(p){
+    return keywords.some(function(k){ return p.name.toLowerCase().indexOf(k.toLowerCase())>=0; });
+  });
+}
+
 function renderBuyerGrid(){
-  var html=products.map(productCard).join('');
+  var filtered = filterProducts(currentCat);
+  var html = filtered.length ? filtered.map(productCard).join('') : '<div style="text-align:center;padding:30px;color:var(--muted);">Tidak ada produk di kategori ini</div>';
   ['home-grid','catalog-grid'].forEach(function(id){
     var el=$(id); if(!el) return;
     el.innerHTML=html;
@@ -1035,6 +1059,16 @@ function renderBuyerGrid(){
       if(qbtn){ e.stopPropagation(); quickAdd(parseInt(qbtn.dataset.id)); }
       else if(card){ openBuyModal(parseInt(card.dataset.id)); }
     };
+  });
+  // update cat pills active state
+  document.querySelectorAll('.cat-pill').forEach(function(pill){
+    var t = pill.textContent.trim().toLowerCase();
+    var isActive = false;
+    if(currentCat==='semua' && (t.indexOf('semua')>=0)) isActive=true;
+    else if(currentCat==='lpg' && (t.indexOf('lpg')>=0||t.indexOf('gas')>=0)) isActive=true;
+    else if(currentCat==='galon' && (t.indexOf('galon')>=0||t.indexOf('air')>=0)) isActive=true;
+    else if(currentCat==='sembako' && t.indexOf('sembako')>=0) isActive=true;
+    pill.classList.toggle('active', isActive);
   });
 }
 
@@ -1402,6 +1436,8 @@ function doTestAlarm(){
   showToast('\uD83D\uDD14 Test alarm berbunyi!');
 }
 function updateNotifBadge(){
+  var b=$('notif-badge');
+  if(!b) return;
   if(unreadNotifs>0){b.textContent=unreadNotifs>9?'9+':unreadNotifs;b.classList.remove('hidden');}
   else{b.classList.add('hidden');}
 }
@@ -1441,7 +1477,7 @@ function changeQty(id,d){
   if(item.qty<=0) cart=cart.filter(function(i){return i.id!==id;});
   updateCartBadge(); renderCart();
 }
-function setDelivery(mode){ deliveryMode=mode; renderCart(); }
+function setDelivery(mode){ pickupMode=mode; renderCart(); }
 function renderCart(){
   var el=$('cart-content');
   if(!cart.length){
@@ -1815,6 +1851,14 @@ document.addEventListener('DOMContentLoaded', function(){
   if($('notif-test-btn'))$('notif-test-btn').addEventListener('click',doTestAlarm);
   // Watermark klik WA
   document.querySelectorAll('.wm-wa-link').forEach(function(el){ el.addEventListener('click', openWhatsApp); });
+  // Category filter pills
+  document.querySelectorAll('.cat-pill[data-cat]').forEach(function(pill){
+    pill.addEventListener('click', function(){
+      currentCat = this.dataset.cat;
+      renderBuyerGrid();
+    });
+  });
+
   loadLS();
   initFirebase(); // ← sambung Firebase realtime
   buildAvatarGrid(); buildEmojiGrid(); buildLogoGrid();
@@ -1827,7 +1871,6 @@ document.addEventListener('DOMContentLoaded', function(){
 var buyerProfile = {name:'Pelanggan Setia', phone:'', avatar:'👤'};
 var addresses = [];
 var ulasanList = [];
-var pickupMode = 'antar';
 var selectedStars = 0;
 var editingAddrId = null;
 var AVATAR_EMOJIS = ['👤','🧑','👩','👨','🧔','🧒','👴','👵','🤠','🥳','🦸','🦹','👷','👮','🤓','😇','😎','🤛','👋','💁'];
