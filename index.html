@@ -522,8 +522,8 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
           <span id="notif-status-icon">&#x1F514;</span>
           <span id="notif-status-text">Memeriksa izin notifikasi...</span>
         </div>
-        <button id="notif-enable-btn" onclick="doRequestNotif()" style="display:none;background:#1a56c4;color:white;border:none;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">Aktifkan</button>
-        <button id="notif-test-btn" onclick="doTestAlarm()" style="background:rgba(0,0,0,.1);color:inherit;border:none;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">&#x1F50A; Test</button>
+        <button id="notif-enable-btn" style="display:none;background:#1a56c4;color:white;border:none;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">Aktifkan</button>
+        <button id="notif-test-btn" style="background:rgba(0,0,0,.1);color:inherit;border:none;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">&#x1F50A; Test</button>
       </div>
       <div id="seller-orders-list"><div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;">&#x1F4ED; Belum ada pesanan masuk</div></div>
       <div class="watermark"><small>Developed &amp; Supported by <strong>D.D Candra</strong> &copy; 2026</small></div>
@@ -840,59 +840,50 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- Firebase Module: hanya import & expose ke window -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get, onValue }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCZw8riZtEMpwzqi11OwGUhwssXUDujyQM",
-  authDomain: "tokopakross.firebaseapp.com",
-  databaseURL: "https://tokopakross-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "tokopakross",
-  storageBucket: "tokopakross.firebasestorage.app",
-  messagingSenderId: "576221899434",
-  appId: "1:576221899434:web:c3722607c554d8c65b7ed3"
-};
-const fbApp = initializeApp(firebaseConfig);
-const db = getDatabase(fbApp);
-
-// Expose ke window agar bisa dipakai script biasa
-window._fbSet    = function(path, data){ return set(ref(db, path), data); };
-window._fbGet    = function(path){ return get(ref(db, path)).then(function(s){ return s.val(); }); };
-window._fbListen = function(path, cb){ onValue(ref(db, path), function(s){ cb(s.val()); }); };
-window._fbReady  = true;
-
-// Trigger init setelah app script siap
-document.addEventListener('DOMContentLoaded', function(){
-  // Tunggu script utama selesai setup, lalu init Firebase
-  setTimeout(function(){ if(window.initFirebase) window.initFirebase(); }, 500);
-});
-</script>
+<!-- Firebase Compat CDN — bekerja sebagai script global, tidak perlu module -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
 // ═══════════════════════════════════════════════
-// FIREBASE HELPERS (wrapper ke window._fb*)
+// FIREBASE INIT
+// ═══════════════════════════════════════════════
+var _db = null;
+try {
+  firebase.initializeApp({
+    apiKey: "AIzaSyCZw8riZtEMpwzqi11OwGUhwssXUDujyQM",
+    authDomain: "tokopakross.firebaseapp.com",
+    databaseURL: "https://tokopakross-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "tokopakross",
+    storageBucket: "tokopakross.firebasestorage.app",
+    messagingSenderId: "576221899434",
+    appId: "1:576221899434:web:c3722607c554d8c65b7ed3"
+  });
+  _db = firebase.database();
+} catch(e){ console.warn('Firebase tidak tersedia:', e.message); }
+
+// ═══════════════════════════════════════════════
+// FIREBASE HELPERS
 // ═══════════════════════════════════════════════
 function fbSet(path, data){
-  if(window._fbSet) return window._fbSet(path, data);
-  return Promise.resolve();
+  if(!_db) return Promise.resolve();
+  return _db.ref(path).set(data).catch(function(){});
 }
 function fbGet(path){
-  if(window._fbGet) return window._fbGet(path);
-  return Promise.resolve(null);
+  if(!_db) return Promise.resolve(null);
+  return _db.ref(path).once('value').then(function(s){ return s.val(); }).catch(function(){ return null; });
 }
 function fbListen(path, cb){
-  if(window._fbListen) window._fbListen(path, cb);
+  if(!_db) return;
+  _db.ref(path).on('value', function(s){ cb(s.val()); });
 }
 
 // Simpan satu pesanan ke Firebase
 function saveOrderFB(o){
-  fbSet('orders/' + o.id.replace(/[^a-zA-Z0-9]/g,'_'), o).catch(function(){});
+  fbSet('orders/' + o.id.replace(/[^a-zA-Z0-9]/g,'_'), o);
 }
 
-// Dengarkan pesanan baru secara realtime (untuk penjual)
+// Dengarkan perubahan realtime
 function listenOrders(){
   fbListen('orders', function(data){
     if(!data) return;
@@ -904,7 +895,7 @@ function listenOrders(){
         var statusChanged = existing.status !== fo.status;
         existing.status = fo.status;
         if(fo.doneTime) existing.doneTime = fo.doneTime;
-        if(statusChanged && currentMode === 'seller' && fo.status === 'pending'){
+        if(statusChanged && currentMode==='seller' && fo.status==='pending'){
           playOrderAlarm();
           sendBrowserNotif('\uD83D\uDED2 Pesanan Baru!', fo.id+' \u2014 '+fo.buyerName+' \u2014 '+fmtRp(fo.total));
           addNotifSilent({title:'\uD83D\uDED2 Pesanan Baru!', body:fo.id+' \u2014 '+fo.buyerName+' \u2014 '+fmtRp(fo.total), type:'order'});
@@ -913,7 +904,7 @@ function listenOrders(){
       } else {
         orders.push(fo);
         changed = true;
-        if(currentMode === 'seller'){
+        if(currentMode==='seller'){
           playOrderAlarm();
           sendBrowserNotif('\uD83D\uDED2 Pesanan Baru!', fo.id+' \u2014 '+fo.buyerName+' \u2014 '+fmtRp(fo.total));
           addNotifSilent({title:'\uD83D\uDED2 Pesanan Baru!', body:fo.id+' \u2014 '+fo.buyerName+' \u2014 '+fmtRp(fo.total), type:'order'});
@@ -923,7 +914,6 @@ function listenOrders(){
     if(changed){ renderBuyerOrders(); renderSellerOrders(); updateDashStats(); }
   });
 }
-
 function listenProducts(){
   fbListen('products', function(data){
     if(!data) return;
@@ -938,24 +928,22 @@ function listenStoreInfo(){
     applyStore();
   });
 }
-
 function addNotifSilent(n){
-  n.time = nowFull(); n.unread = true;
+  n.time=nowFull(); n.unread=true;
   notifications.unshift(n); unreadNotifs++;
   updateNotifBadge();
   var btn=$('notif-btn'); if(!btn) return;
   btn.classList.add('ring');
   setTimeout(function(){ btn.classList.remove('ring'); }, 2000);
 }
-
-// Dipanggil oleh module Firebase setelah siap
-window.initFirebase = function(){
-  fbGet('storeInfo').then(function(data){ if(!data) fbSet('storeInfo', storeInfo); });
-  fbGet('products').then(function(data){ if(!data) fbSet('products', products); });
+function initFirebase(){
+  if(!_db) return;
+  fbGet('storeInfo').then(function(d){ if(!d) fbSet('storeInfo', storeInfo); });
+  fbGet('products').then(function(d){ if(!d) fbSet('products', products); });
   listenOrders();
   listenProducts();
   listenStoreInfo();
-};
+}
 
 // ═══════════════════════════════════════════════
 // DATA
@@ -1033,21 +1021,37 @@ function applyStore(){
 // ═══════════════════════════════════════════════
 function productCard(p){
   var badge=p.status==='available'?'<span class="stock-badge">Tersedia</span>':p.status==='low'?'<span class="stock-badge low">Sisa Sedikit</span>':'<span class="stock-badge empty">Habis</span>';
-  return '<div class="product-card" onclick="openBuyModal('+p.id+')">'+badge+'<div class="prod-img">'+p.icon+'</div><div class="prod-name">'+p.name+'</div><div class="prod-desc">'+p.desc+'</div><div class="prod-price">'+fmtRp(p.price)+' <span>/'+p.unit+'</span></div><button class="add-btn" onclick="event.stopPropagation();quickAdd('+p.id+')">+</button></div>';
+  return '<div class="product-card" data-action="buy" data-id="'+p.id+'">'+badge+'<div class="prod-img">'+p.icon+'</div><div class="prod-name">'+p.name+'</div><div class="prod-desc">'+p.desc+'</div><div class="prod-price">'+fmtRp(p.price)+' <span>/'+p.unit+'</span></div><button class="add-btn" data-action="quickadd" data-id="'+p.id+'">+</button></div>';
 }
 
 function renderBuyerGrid(){
   var html=products.map(productCard).join('');
-  setEl('home-grid',html); setEl('catalog-grid',html);
+  ['home-grid','catalog-grid'].forEach(function(id){
+    var el=$(id); if(!el) return;
+    el.innerHTML=html;
+    el.onclick=function(e){
+      var card=e.target.closest('[data-action="buy"]');
+      var qbtn=e.target.closest('[data-action="quickadd"]');
+      if(qbtn){ e.stopPropagation(); quickAdd(parseInt(qbtn.dataset.id)); }
+      else if(card){ openBuyModal(parseInt(card.dataset.id)); }
+    };
+  });
 }
 
 function renderStockList(){
-  var html=products.map(function(p){
+  var el=$('stock-list'); if(!el) return;
+  if(!products.length){ el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);">Belum ada produk</div>'; return; }
+  el.innerHTML=products.map(function(p){
     var pct=Math.min(100,Math.round(p.stock/60*100));
     var cls=p.stock<=5?'low':p.stock<=15?'mid':'';
-    return '<div class="stock-item"><div class="si-icon">'+p.icon+'</div><div class="si-info"><div class="si-name">'+p.name+'</div><div class="si-price">'+fmtRp(p.price)+'/'+p.unit+'</div><div class="si-qty">Stok: '+p.stock+' '+p.unit+(p.stock<=5?' \u26A0\uFE0F':'')+'</div><div class="prog-bar"><div class="prog-fill '+cls+'" style="width:'+pct+'%"></div></div></div><div class="si-actions"><button class="si-edit" onclick="openEditProduct('+p.id+')">&#x270F;&#xFE0F; Edit</button><button class="si-del" onclick="deleteProductDirect('+p.id+')">&#x1F5D1;&#xFE0F;</button></div></div>';
+    return '<div class="stock-item"><div class="si-icon">'+p.icon+'</div><div class="si-info"><div class="si-name">'+p.name+'</div><div class="si-price">'+fmtRp(p.price)+'/'+p.unit+'</div><div class="si-qty">Stok: '+p.stock+' '+p.unit+(p.stock<=5?' \u26A0\uFE0F':'')+'</div><div class="prog-bar"><div class="prog-fill '+cls+'" style="width:'+pct+'%"></div></div></div><div class="si-actions"><button class="si-edit" data-action="edit" data-id="'+p.id+'">\u270F\uFE0F Edit</button><button class="si-del" data-action="del" data-id="'+p.id+'">\uD83D\uDDD1\uFE0F</button></div></div>';
   }).join('');
-  setEl('stock-list',html||'<div style="text-align:center;padding:30px;color:var(--muted);">Belum ada produk</div>');
+  el.onclick=function(e){
+    var b=e.target.closest('[data-action]'); if(!b) return;
+    var id=parseInt(b.dataset.id);
+    if(b.dataset.action==='edit') openEditProduct(id);
+    else if(b.dataset.action==='del') deleteProductDirect(id);
+  };
 }
 
 function renderTopProds(){
@@ -1807,7 +1811,12 @@ document.addEventListener('DOMContentLoaded', function(){
   if($('struk-print-btn'))$('struk-print-btn').addEventListener('click',printStruk);
   if($('struk-overlay'))$('struk-overlay').addEventListener('click',function(e){if(e.target===$('struk-overlay'))$('struk-overlay').classList.remove('open');});
   if($('menu-seller-wa'))$('menu-seller-wa').addEventListener('click',openWhatsApp);
-  loadLS(); // ← muat data dari localStorage
+  if($('notif-enable-btn'))$('notif-enable-btn').addEventListener('click',doRequestNotif);
+  if($('notif-test-btn'))$('notif-test-btn').addEventListener('click',doTestAlarm);
+  // Watermark klik WA
+  document.querySelectorAll('.wm-wa-link').forEach(function(el){ el.addEventListener('click', openWhatsApp); });
+  loadLS();
+  initFirebase(); // ← sambung Firebase realtime
   buildAvatarGrid(); buildEmojiGrid(); buildLogoGrid();
   applyStore(); applyBuyerProfile();
   renderBuyerGrid(); renderStockList(); renderTopProds(); renderBuyerOrders(); renderSellerOrders(); updateDashStats(); updateNotifBadge();
@@ -1829,7 +1838,20 @@ function selAvatar(e){setEl('pe-avatar-preview',e);document.querySelectorAll('[d
 function openProfileEdit(){$('pe-name').value=buyerProfile.name==='Pelanggan Setia'?'':buyerProfile.name;$('pe-phone').value=buyerProfile.phone;setEl('pe-avatar-preview',buyerProfile.avatar);document.querySelectorAll('[data-av]').forEach(function(el){el.style.background=el.dataset.av===buyerProfile.avatar?'var(--primary-light)':'';el.style.outline=el.dataset.av===buyerProfile.avatar?'2px solid var(--primary)':'';});$('profile-edit-overlay').classList.add('open');}
 function saveBuyerProfile(){var name=$('pe-name').value.trim(),phone=$('pe-phone').value.trim(),nav=$('pe-avatar-preview').textContent;buyerProfile.name=name||'Pelanggan Setia';buyerProfile.phone=phone;buyerProfile.avatar=nav||'👤';applyBuyerProfile();saveLS();$('profile-edit-overlay').classList.remove('open');showToast('\u2705 Profil disimpan!');}
 function openAlamatModal(){renderAddrList();$('alamat-overlay').classList.add('open');}
-function renderAddrList(){if(!addresses.length){setEl('addr-list','<div style="text-align:center;padding:20px;color:var(--muted);">📍 Belum ada alamat.<br>Tambah alamat baru!</div>');return;}setEl('addr-list',addresses.map(function(a,i){return '<div class="addr-card"><div class="ac-icon">📍</div><div class="ac-info"><div class="ac-label">'+(a.label||'Alamat '+(i+1))+(a.isDefault?' \u2B50 Utama':'')+'</div><div class="ac-name">'+a.addr+'</div>'+(a.note?'<div class="ac-text">'+a.note+'</div>':'')+'<div class="ac-actions"><button class="ac-btn edit" onclick="openEditAddr('+i+')">\u270F\uFE0F Edit</button><button class="ac-btn del" onclick="deleteAddr('+i+')">🗑\uFE0F Hapus</button>'+(!a.isDefault?'<button class="ac-btn def" onclick="setDefaultAddr('+i+')">\u2B50 Utama</button>':'')+'</div></div></div>';}).join(''));}
+function renderAddrList(){
+  if(!addresses.length){setEl('addr-list','<div style="text-align:center;padding:20px;color:var(--muted);">\uD83D\uDCCD Belum ada alamat.<br>Tambah alamat baru!</div>');return;}
+  var el=$('addr-list');
+  el.innerHTML=addresses.map(function(a,i){
+    return '<div class="addr-card"><div class="ac-icon">\uD83D\uDCCD</div><div class="ac-info"><div class="ac-label">'+(a.label||'Alamat '+(i+1))+(a.isDefault?' \u2B50 Utama':'')+'</div><div class="ac-name">'+a.addr+'</div>'+(a.note?'<div class="ac-text">'+a.note+'</div>':'')+'<div class="ac-actions"><button class="ac-btn edit" data-action="edit-addr" data-i="'+i+'">\u270F\uFE0F Edit</button><button class="ac-btn del" data-action="del-addr" data-i="'+i+'">\uD83D\uDDD1\uFE0F Hapus</button>'+(!a.isDefault?'<button class="ac-btn def" data-action="def-addr" data-i="'+i+'">\u2B50 Utama</button>':'')+'</div></div></div>';
+  }).join('');
+  el.onclick=function(e){
+    var b=e.target.closest('[data-action]'); if(!b) return;
+    var i=parseInt(b.dataset.i), action=b.dataset.action;
+    if(action==='edit-addr') openEditAddr(i);
+    else if(action==='del-addr') deleteAddr(i);
+    else if(action==='def-addr') setDefaultAddr(i);
+  };
+}
 function openAddAddr(){editingAddrId=null;setTxt('addr-form-title','\u2795 Tambah Alamat');$('af-label').value='';$('af-addr').value='';$('af-note').value='';$('addr-form-overlay').classList.add('open');}
 function openEditAddr(i){editingAddrId=i;setTxt('addr-form-title','\u270F\uFE0F Edit Alamat');var a=addresses[i];$('af-label').value=a.label||'';$('af-addr').value=a.addr||'';$('af-note').value=a.note||'';$('addr-form-overlay').classList.add('open');}
 function saveAddr(){var label=$('af-label').value.trim(),addr=$('af-addr').value.trim(),note=$('af-note').value.trim();if(!addr){showToast('\u26A0\uFE0F Alamat wajib diisi!','warn');return;}if(editingAddrId!==null){addresses[editingAddrId]={label:label||'Alamat',addr:addr,note:note,isDefault:addresses[editingAddrId].isDefault};}else{addresses.push({label:label||'Alamat '+(addresses.length+1),addr:addr,note:note,isDefault:addresses.length===0});}saveLS();$('addr-form-overlay').classList.remove('open');renderAddrList();showToast('\u2705 Alamat disimpan!');}
