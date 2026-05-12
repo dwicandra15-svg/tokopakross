@@ -739,6 +739,13 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
         <div style="font-size:12px;color:rgba(255,255,255,.8);">Perubahan sync ke seluruh halaman</div>
       </div>
       <div class="edit-field"><label class="e-label">&#x1F5BC;&#xFE0F; LOGO TOKO</label>
+        <!-- Upload foto logo -->
+        <div id="logo-upload-area" style="border:2px dashed var(--accent);border-radius:12px;padding:12px;text-align:center;cursor:pointer;background:#fffbf0;margin-bottom:8px;">
+          <div style="font-size:24px;">📁</div>
+          <div style="font-size:12px;font-weight:700;color:var(--accent-dark);">Upload Foto Logo</div>
+          <div style="font-size:10px;color:var(--muted);">JPG/PNG — otomatis dikecilkan</div>
+        </div>
+        <input type="file" id="logo-img-file" accept="image/*" style="display:none"/>
         <div class="logo-grid" id="logo-grid"></div>
         <input class="e-input" id="set-logo" placeholder="Atau ketik emoji logo"/>
       </div>
@@ -1050,17 +1057,31 @@ function showToast(msg,type){
 function applyStore(){
   var s=storeInfo;
   var waDisp=s.wa.startsWith('62')?'0'+s.wa.slice(2):s.wa;
-  setEl('tb-logo',s.logo); setTxt('tb-name',s.name);
-  setTxt('tb-addr','📍 '+s.address);
-  setTxt('splash-logo',s.logo); setTxt('splash-name',s.name);
+  // Logo bisa berupa emoji atau data:image — tampilkan dengan benar
+  var isImg = s.logo && s.logo.startsWith('data:image');
+  var logoHtml = isImg
+    ? '<img src="'+s.logo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>'
+    : s.logo;
+  var logoSmall = isImg
+    ? '<img src="'+s.logo+'" style="width:36px;height:36px;object-fit:cover;border-radius:50%;"/>'
+    : s.logo;
+  setEl('tb-logo', logoSmall);
+  setEl('splash-logo-wrap', '<img src="'+(isImg?s.logo:'')+'" style="'+(isImg?'width:100%;height:100%;object-fit:cover;border-radius:50%;':'display:none')+'" id="splash-logo-img"/><span id="splash-logo" style="'+(isImg?'display:none':'')+'">'+s.logo+'</span>');
+  if(!isImg){ setTxt('splash-logo', s.logo); }
+  setTxt('tb-name',s.name);
+  setTxt('tb-addr','\uD83D\uDCCD '+s.address);
+  setTxt('splash-name',s.name);
   setTxt('splash-tag','\u26A1 SIAP KIRIM \u2022 '+s.address);
   setEl('wm-name',s.name); setEl('wm-addr',s.address); setEl('wm-wa',waDisp);
   setEl('info-jam','Jam operasional: <strong>'+s.open+' \u2013 '+s.close+'</strong><br>Pengiriman ke seluruh area sekitar '+s.address);
   setTxt('hero-tag',s.tagline);
-  setEl('set-avatar',s.logo);
+  setEl('set-avatar', isImg ? '<img src="'+s.logo+'" style="width:44px;height:44px;object-fit:cover;border-radius:50%;"/>' : s.logo);
   setTxt('set-name','Admin '+s.name);
   setTxt('set-sub',s.address+' \u2022 '+waDisp);
   setTxt('login-store-hint',s.name+' \u2014 Area Penjual');
+  // Update preview di settings jika overlay terbuka
+  var prev = $('set-logo-prev');
+  if(prev){ prev.innerHTML = isImg ? '<img src="'+s.logo+'" style="width:56px;height:56px;object-fit:cover;border-radius:50%;border:3px solid white;"/>' : s.logo; }
 }
 
 // ═══════════════════════════════════════════════
@@ -1447,19 +1468,72 @@ function renderReport(){
 // ═══════════════════════════════════════════════
 var currentProductImg = null; // base64 atau null
 
+// ═══════════════════════════════════════════════
+// AUTO RESIZE IMAGE — pakai Canvas, tidak perlu library
+// ═══════════════════════════════════════════════
+function resizeImage(file, maxPx, quality, callback){
+  // maxPx: ukuran max sisi terpanjang (px)
+  // quality: 0.0–1.0 untuk JPEG
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    var img = new window.Image();
+    img.onload = function(){
+      // Hitung ukuran baru dengan mempertahankan rasio
+      var w = img.width, h = img.height;
+      if(w > maxPx || h > maxPx){
+        if(w >= h){ h = Math.round(h * maxPx / w); w = maxPx; }
+        else       { w = Math.round(w * maxPx / h); h = maxPx; }
+      }
+      // Gambar ke canvas
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      var dataUrl = canvas.toDataURL('image/jpeg', quality);
+      var kb = Math.round(dataUrl.length * 3/4 / 1024);
+      callback(dataUrl, w, h, kb);
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function initProdImgUpload(){
   var inp = $('prod-img-file'); if(!inp) return;
+  var area = $('prod-img-upload-area'); if(!area) return;
+  area.onclick = function(){ inp.click(); };
   inp.onchange = function(e){
     var file = e.target.files[0]; if(!file) return;
-    if(file.size > 600000){ showToast('Foto terlalu besar! Max 500KB','warn'); return; }
-    var reader = new FileReader();
-    reader.onload = function(ev){
-      currentProductImg = ev.target.result;
+    showToast('\uD83D\uDD04 Mengkompres gambar...');
+    resizeImage(file, 200, 0.82, function(dataUrl, w, h, kb){
+      currentProductImg = dataUrl;
       var prev = $('prod-img-preview');
-      prev.innerHTML = '<img src="'+currentProductImg+'" style="max-height:100px;max-width:100%;border-radius:10px;display:block;margin:0 auto;"/><div style="margin-top:6px;font-size:11px;color:var(--primary);font-weight:600;">\u2705 Foto dipilih &mdash; Klik untuk ganti</div>';
-      setEl('ep-icon','<img src="'+currentProductImg+'" style="width:56px;height:56px;object-fit:cover;border-radius:12px;"/>');
-    };
-    reader.readAsDataURL(file);
+      prev.innerHTML = '<img src="'+dataUrl+'" style="max-height:100px;max-width:100%;border-radius:10px;display:block;margin:0 auto;"/>'
+        +'<div style="margin-top:6px;font-size:11px;color:var(--primary);font-weight:600;">\u2705 '+w+'×'+h+'px — '+kb+'KB — Klik untuk ganti</div>';
+      setEl('ep-icon','<img src="'+dataUrl+'" style="width:56px;height:56px;object-fit:cover;border-radius:12px;"/>');
+      showToast('\u2705 Gambar siap! '+kb+'KB');
+    });
+    inp.value='';
+  };
+}
+
+function initLogoUpload(){
+  var inp = $('logo-img-file'); if(!inp) return;
+  var area = $('logo-upload-area'); if(!area) return;
+  area.onclick = function(){ inp.click(); };
+  inp.onchange = function(e){
+    var file = e.target.files[0]; if(!file) return;
+    showToast('\uD83D\uDD04 Mengkompres logo...');
+    resizeImage(file, 120, 0.85, function(dataUrl, w, h, kb){
+      // Simpan sebagai logo toko
+      storeInfo.logo = dataUrl;
+      // Update preview di settings
+      setEl('set-logo-prev', '<img src="'+dataUrl+'" style="width:56px;height:56px;object-fit:cover;border-radius:50%;border:3px solid white;"/>');
+      // Kosongkan input emoji karena pakai foto
+      $('set-logo').value = '';
+      showToast('\u2705 Logo dikompres! '+w+'\xD7'+h+'px \u2014 '+kb+'KB');
+    });
+    inp.value='';
   };
 }
 
@@ -1904,7 +1978,13 @@ function openStoreSettings(){
   $('settings-overlay').classList.add('open');
 }
 function saveStoreSettings(){
-  var logo=$('set-logo').value.trim()||'🛒';
+  // Pakai foto logo jika sudah diupload, fallback ke emoji/teks
+  var logoInput = $('set-logo').value.trim();
+  var logo = (storeInfo.logo && storeInfo.logo.startsWith('data:image')) 
+    ? storeInfo.logo   // pertahankan foto yang sudah diupload
+    : (logoInput || '\uD83D\uDED2');
+  // Jika user mengetik emoji baru, pakai itu (override foto)
+  if(logoInput) logo = logoInput;
   var name=$('set-sname').value.trim(); if(!name){showToast('\u26A0\uFE0F Nama toko wajib!','warn');return;}
   storeInfo={logo:logo,name:name,address:$('set-addr').value.trim(),wa:$('set-wa').value.trim(),open:$('set-open').value.trim(),close:$('set-close').value.trim(),tagline:$('set-tag').value.trim()};
   applyStore(); saveLS(); fbSet('storeInfo', storeInfo); $('settings-overlay').classList.remove('open'); showToast('\u2705 Pengaturan toko disimpan!');
@@ -2157,6 +2237,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // Upload foto produk
   initProdImgUpload();
+  initLogoUpload();
 
   loadLS();
   initFirebase(); // ← sambung Firebase realtime
