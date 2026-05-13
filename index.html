@@ -50,8 +50,11 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
 .mode-pill{background:rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,.35);}
 /* CONTENT — setiap section mengisi penuh, tidak scroll bersama section lain */
 .content{flex:1;overflow:hidden;position:relative;}
-.section{display:none;position:absolute;inset:0;overflow-y:auto;padding-bottom:calc(var(--nav)+16px);-webkit-overflow-scrolling:touch;}
-.section.active{display:block;animation:fadeIn .18s ease;}
+.section{display:none;position:absolute;inset:0;overflow-y:auto;padding-bottom:calc(var(--nav)+16px);-webkit-overflow-scrolling:touch;visibility:hidden;}
+.section.active{display:block;visibility:visible;animation:fadeIn .18s ease;}
+/* Saat app baru load (sebelum session restore), sembunyikan semua content agar tidak ada flicker/overlap */
+#app:not(.session-ready) .content{visibility:hidden;}
+#app:not(.session-ready) .bottom-nav{visibility:hidden;}
 .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:white;border-top:1px solid var(--border);display:flex;height:var(--nav);z-index:100;box-shadow:0 -4px 20px rgba(0,0,0,.08);}
 .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:10px;gap:3px;border:none;background:none;font-family:'Poppins',sans-serif;position:relative;transition:color .15s;}
 .nav-item .ni{font-size:20px;transition:transform .2s;}
@@ -2031,6 +2034,7 @@ function doLogout(){
   cart=[]; currentMode='buyer';
   // Sembunyikan app, tampilkan splash
   $('app').classList.remove('active');
+  $('app').classList.remove('session-ready');
   $('splash').style.display='flex';
   $('splash').style.opacity='1';
   showToast('\uD83D\uDEAA Berhasil keluar');
@@ -2051,6 +2055,7 @@ function enterApp(mode){
   setTimeout(function(){
     $('splash').style.display='none';
     $('app').classList.add('active');
+    $('app').classList.add('session-ready');
     setMode(mode);
   }, 400);
 }
@@ -2133,7 +2138,7 @@ function doLogin(){
       closeLoginModal(); btn.textContent='🔓 Masuk sebagai Admin'; btn.style.background='linear-gradient(135deg,#1a56c4,#0d3a8a)'; btn.disabled=false;
       $('splash').style.opacity='0';
       setTimeout(function(){
-        $('splash').style.display='none';$('app').classList.add('active');setMode('seller');showToast('\u2705 Selamat datang, Admin!');
+        $('splash').style.display='none';$('app').classList.add('active');$('app').classList.add('session-ready');setMode('seller');showToast('\u2705 Selamat datang, Admin!');
         // Request notification permission after login
         requestNotifPermission(function(granted){
           updateNotifStatusBar();
@@ -2295,17 +2300,49 @@ document.addEventListener('DOMContentLoaded', function(){
       $('nav-buyer').style.display = 'flex';
       $('nav-seller').style.display = 'none';
       $('cart-btn').style.display = 'flex';
-      switchNav(sess.page || 'home');
+      // Sembunyikan SEMUA section dulu sebelum set yang aktif
+      BUYER_SECS.concat(SELLER_SECS).forEach(function(s){
+        var el=$('sec-'+s); if(el){ el.classList.remove('active'); el.scrollTop=0; }
+      });
+      var targetPage = sess.page || 'home';
+      var t=$('sec-'+targetPage); if(t){ t.classList.add('active'); t.scrollTop=0; }
+      var nb=$('nb-'+targetPage); if(nb){ 
+        document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+        nb.classList.add('active'); 
+      }
+      if(targetPage==='cart')   renderCart();
+      if(targetPage==='orders') renderBuyerOrders();
     } else if(sess.mode === 'seller'){
       currentMode = 'seller';
       setTxt('mode-label', '🏪 Penjual');
       $('nav-buyer').style.display = 'none';
       $('nav-seller').style.display = 'flex';
       $('cart-btn').style.display = 'none';
-      switchNavSeller(sess.page || 'dashboard');
+      // Sembunyikan SEMUA section dulu sebelum set yang aktif
+      BUYER_SECS.concat(SELLER_SECS).forEach(function(s){
+        var el=$('sec-'+s); if(el){ el.classList.remove('active'); el.scrollTop=0; }
+      });
+      var targetPage = sess.page || 'dashboard';
+      var t=$('sec-'+targetPage); if(t){ t.classList.add('active'); t.scrollTop=0; }
+      // Update nav highlight seller
+      ['dashboard','stock','report','profile'].forEach(function(k){
+        var nb=$('ns-'+k); if(nb) nb.classList.remove('active');
+      });
+      var map={'dashboard':'dashboard','stock':'stock','report':'report','seller-profile':'profile'};
+      var nb=$('ns-'+(map[targetPage]||targetPage)); if(nb) nb.classList.add('active');
+      if(targetPage==='stock')     renderStockList();
+      if(targetPage==='report')    renderTopProds();
+      if(targetPage==='dashboard'){ renderSellerOrders(); updateNotifStatusBar(); }
       // Cek pesanan pending setelah Firebase load
       setTimeout(function(){ checkPendingOrdersOnLogin(); }, 2000);
     }
+  }
+  // Tandai app sudah siap — baru tampilkan content (hilangkan sembunyian anti-flicker)
+  $('app').classList.add('session-ready');
+  // Jika tidak ada session aktif, pastikan splash tetap tampil normal
+  if(!sess || !sess.mode){
+    $('splash').style.display = '';
+    $('splash').style.opacity = '1';
   }
 });
 
