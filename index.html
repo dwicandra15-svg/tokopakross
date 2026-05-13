@@ -38,25 +38,37 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
 #app.active{display:flex;}
 .top-bar{background:linear-gradient(135deg,var(--primary-dark),var(--primary));color:white;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
 .store-info{display:flex;align-items:center;gap:10px;}
-.logo-circle{width:40px;height:40px;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;}
+.logo-circle{width:40px;height:40px;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;cursor:pointer;transition:transform .15s;}
+.logo-circle:active{transform:scale(.92);}
 .top-bar h1{font-size:15px;font-weight:700;font-family:'Nunito',sans-serif;}
 .top-bar p{font-size:11px;opacity:.8;}
 .tb-actions{display:flex;gap:8px;}
-.icon-btn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.18);border:none;color:white;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;}
+.icon-btn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.18);border:none;color:white;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;transition:transform .15s,background .15s;}
+.icon-btn:active{transform:scale(.88);background:rgba(255,255,255,.35);}
 .badge{position:absolute;top:-3px;right:-3px;background:var(--danger);color:white;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
 .badge.hidden{display:none;}
 .mode-pill{background:rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,.35);}
-.content{flex:1;overflow-y:auto;padding-bottom:calc(var(--nav)+16px);}
+/* CONTENT — setiap section mengisi penuh, tidak scroll bersama section lain */
+.content{flex:1;overflow:hidden;position:relative;}
+.section{display:none;position:absolute;inset:0;overflow-y:auto;padding-bottom:calc(var(--nav)+16px);-webkit-overflow-scrolling:touch;}
+.section.active{display:block;animation:fadeIn .18s ease;}
 .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:white;border-top:1px solid var(--border);display:flex;height:var(--nav);z-index:100;box-shadow:0 -4px 20px rgba(0,0,0,.08);}
-.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:10px;gap:3px;border:none;background:none;font-family:'Poppins',sans-serif;position:relative;}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:10px;gap:3px;border:none;background:none;font-family:'Poppins',sans-serif;position:relative;transition:color .15s;}
 .nav-item .ni{font-size:20px;transition:transform .2s;}
 .nav-item.active{color:var(--primary);}
-.nav-item.active .ni{transform:scale(1.15);}
+.nav-item.active .ni{transform:scale(1.2);}
+.nav-item:active .ni{transform:scale(.85);}
 .nav-item span{font-weight:600;}
 .nav-badge{position:absolute;top:6px;right:calc(50% - 18px);background:var(--danger);color:white;font-size:8px;font-weight:700;width:14px;height:14px;border-radius:50%;display:none;align-items:center;justify-content:center;}
 .nav-badge.show{display:flex;}
-.section{display:none;}
-.section.active{display:block;}
+/* RIPPLE EFFECT */
+.ripple{position:relative;overflow:hidden;}
+.ripple::after{content:'';position:absolute;border-radius:50%;background:rgba(255,255,255,.4);transform:scale(0);animation:rippleAnim .5s linear;pointer-events:none;}
+@keyframes rippleAnim{to{transform:scale(4);opacity:0;}}
+/* BUTTON ACTIVE STATES */
+button:active,.role-btn:active,.big-btn:active,.ghost-btn:active,.danger-ghost-btn:active,.checkout-btn:active{transform:scale(.96);filter:brightness(.93);}
+.role-btn{transition:transform .15s,box-shadow .15s;}
+.big-btn{transition:transform .15s,filter .15s;}
 /* UTIL */
 .section-title{font-size:14px;font-weight:700;color:var(--text);margin:18px 14px 10px;display:flex;align-items:center;gap:6px;}
 .section-title::before{content:'';width:4px;height:16px;background:var(--primary);border-radius:2px;display:block;}
@@ -492,6 +504,11 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
         <div class="menu-item" id="menu-ulasan"><span class="mi">&#x2B50;</span><span class="ml">Beri Ulasan Toko</span><span class="ma">&#x203A;</span></div>
         <div class="menu-item" id="profile-wa-btn"><span class="mi">&#x1F4F2;</span><span class="ml">Hubungi Toko via WhatsApp</span><span class="ma">&#x203A;</span></div>
       </div>
+      <div style="padding:14px;">
+        <button id="buyer-logout-btn" style="width:100%;padding:14px;border-radius:14px;border:2px solid var(--danger);background:white;color:var(--danger);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Poppins',sans-serif;">
+          &#x1F6AA; Keluar / Logout
+        </button>
+      </div>
       <div class="watermark"><small>Developed &amp; Supported by <strong>D.D Candra</strong> &copy; 2026</small></div>
     </div>
 
@@ -593,7 +610,13 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
         <div class="menu-item" id="menu-logo"><span class="mi">&#x1F5BC;&#xFE0F;</span><span class="ml">Ubah Logo &amp; Nama Toko</span><span class="ma">&#x203A;</span></div>
         <div class="menu-item" id="menu-jam"><span class="mi">&#x1F4CD;</span><span class="ml">Alamat &amp; Jam Operasional</span><span class="ma">&#x203A;</span></div>
         <div class="menu-item" id="menu-wa"><span class="mi">&#x1F4F2;</span><span class="ml">WhatsApp Toko</span><span class="ma">&#x203A;</span></div>
-        <div class="menu-item"><span class="mi">&#x1F510;</span><span class="ml">Keamanan Akun</span><span class="ma">&#x203A;</span></div>
+        <div class="menu-item" id="menu-seller-wa"><span class="mi">&#x1F4AC;</span><span class="ml">Chat WhatsApp Toko</span><span class="ma">&#x203A;</span></div>
+        <div class="menu-item" id="menu-ulasan-seller"><span class="mi">&#x2B50;</span><span class="ml">Lihat Semua Ulasan</span><span class="ma">&#x203A;</span></div>
+      </div>
+      <div style="padding:14px;">
+        <button id="seller-logout-btn" style="width:100%;padding:14px;border-radius:14px;border:2px solid var(--danger);background:white;color:var(--danger);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Poppins',sans-serif;">
+          &#x1F6AA; Keluar / Logout
+        </button>
       </div>
       <div class="watermark"><small>Developed &amp; Supported by <strong>D.D Candra</strong> &copy; 2026</small></div>
     </div>
@@ -2001,6 +2024,18 @@ function saveSession(mode, page){
 function loadSession(){
   try{ var r=sessionStorage.getItem(SS_KEY); return r?JSON.parse(r):null; }catch(e){ return null; }
 }
+function doLogout(){
+  if(!confirm('Yakin ingin keluar dari aplikasi?')) return;
+  clearSession();
+  // Reset state
+  cart=[]; currentMode='buyer';
+  // Sembunyikan app, tampilkan splash
+  $('app').classList.remove('active');
+  $('splash').style.display='flex';
+  $('splash').style.opacity='1';
+  showToast('\uD83D\uDEAA Berhasil keluar');
+}
+
 function clearSession(){
   try{ sessionStorage.removeItem(SS_KEY); }catch(e){}
 }
@@ -2042,34 +2077,30 @@ function setMode(mode){
 }
 
 function switchNav(name){
-  // Sembunyikan semua buyer section
   BUYER_SECS.forEach(function(s){
-    var el=$('sec-'+s); if(el) el.classList.remove('active');
+    var el=$('sec-'+s); if(el){ el.classList.remove('active'); el.scrollTop=0; }
     var nb=$('nb-'+s); if(nb) nb.classList.remove('active');
   });
-  var t=$('sec-'+name); if(t) t.classList.add('active');
+  var t=$('sec-'+name); if(t){ t.classList.add('active'); t.scrollTop=0; }
   var nb=$('nb-'+name); if(nb) nb.classList.add('active');
   if(name==='cart')   renderCart();
   if(name==='orders') renderBuyerOrders();
-  var c=document.querySelector('.content'); if(c) c.scrollTop=0;
   saveSession('buyer', name);
 }
 
 function switchNavSeller(name){
-  // Sembunyikan semua seller section
   SELLER_SECS.forEach(function(s){
-    var el=$('sec-'+s); if(el) el.classList.remove('active');
+    var el=$('sec-'+s); if(el){ el.classList.remove('active'); el.scrollTop=0; }
   });
   ['dashboard','stock','report','profile'].forEach(function(k){
     var nb=$('ns-'+k); if(nb) nb.classList.remove('active');
   });
-  var t=$('sec-'+name); if(t) t.classList.add('active');
+  var t=$('sec-'+name); if(t){ t.classList.add('active'); t.scrollTop=0; }
   var map={'dashboard':'dashboard','stock':'stock','report':'report','seller-profile':'profile'};
   var nb=$('ns-'+(map[name]||name)); if(nb) nb.classList.add('active');
   if(name==='stock')     renderStockList();
   if(name==='report')    renderTopProds();
   if(name==='dashboard'){ renderSellerOrders(); updateNotifStatusBar(); }
-  var c=document.querySelector('.content'); if(c) c.scrollTop=0;
   saveSession('seller', name);
 }
 function switchMode(){
@@ -2215,6 +2246,13 @@ document.addEventListener('DOMContentLoaded', function(){
   if($('menu-seller-wa'))$('menu-seller-wa').addEventListener('click',openWhatsApp);
   if($('notif-enable-btn'))$('notif-enable-btn').addEventListener('click',doRequestNotif);
   if($('notif-test-btn'))$('notif-test-btn').addEventListener('click',doTestAlarm);
+  // Logout
+  if($('buyer-logout-btn'))$('buyer-logout-btn').addEventListener('click',doLogout);
+  if($('seller-logout-btn'))$('seller-logout-btn').addEventListener('click',doLogout);
+  // Logo di top-bar → buka pengaturan toko
+  if($('tb-logo'))$('tb-logo').addEventListener('click',function(){
+    if(currentMode==='seller') openStoreSettings();
+  });
   // Watermark klik WA
   document.querySelectorAll('.wm-wa-link').forEach(function(el){ el.addEventListener('click', openWhatsApp); });
   // Category filter pills
