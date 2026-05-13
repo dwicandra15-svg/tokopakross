@@ -50,7 +50,7 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
 .mode-pill{background:rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,.35);}
 /* CONTENT — setiap section mengisi penuh, tidak scroll bersama section lain */
 .content{flex:1;overflow:hidden;position:relative;}
-.section{display:none;position:absolute;inset:0;overflow-y:auto;padding-bottom:calc(var(--nav)+16px);-webkit-overflow-scrolling:touch;visibility:hidden;}
+.section{display:none;position:absolute;inset:0;overflow-y:auto;padding-bottom:calc(var(--nav)+80px);-webkit-overflow-scrolling:touch;visibility:hidden;}
 .section.active{display:block;visibility:visible;animation:fadeIn .18s ease;}
 /* Saat app baru load (sebelum session restore), sembunyikan semua content agar tidak ada flicker/overlap */
 #app:not(.session-ready) .content{visibility:hidden;}
@@ -206,8 +206,9 @@ button:active,.role-btn:active,.big-btn:active,.ghost-btn:active,.danger-ghost-b
 .ia-btn.done{background:#e2e3e5;color:#383d41;}
 .ia-btn.wa{background:#25D366;color:white;}
 /* STOCK */
-.stock-item{background:white;margin:0 14px 8px;border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;}
-.si-icon{font-size:30px;flex-shrink:0;width:56px;height:56px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;}
+.stock-item{background:white;margin:0 14px 10px;border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;}
+.si-icon{font-size:30px;flex-shrink:0;width:64px;height:64px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:12px;background:var(--primary-light);}
+.si-icon img{width:100%;height:100%;object-fit:cover;border-radius:12px;}
 .si-info{flex:1;}
 .si-name{font-size:13px;font-weight:700;}
 .si-price{font-size:12px;color:var(--primary);font-weight:700;font-family:'Nunito',sans-serif;}
@@ -509,7 +510,7 @@ button:active,.role-btn:active,.big-btn:active,.ghost-btn:active,.danger-ghost-b
         <div class="menu-item" id="menu-ulasan"><span class="mi">&#x2B50;</span><span class="ml">Beri Ulasan Toko</span><span class="ma">&#x203A;</span></div>
         <div class="menu-item" id="profile-wa-btn"><span class="mi">&#x1F4F2;</span><span class="ml">Hubungi Toko via WhatsApp</span><span class="ma">&#x203A;</span></div>
       </div>
-      <div style="padding:14px;">
+      <div style="padding:14px 14px 36px;">
         <button id="buyer-logout-btn" style="width:100%;padding:14px;border-radius:14px;border:2px solid var(--danger);background:white;color:var(--danger);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Poppins',sans-serif;">
           &#x1F6AA; Keluar / Logout
         </button>
@@ -618,7 +619,7 @@ button:active,.role-btn:active,.big-btn:active,.ghost-btn:active,.danger-ghost-b
         <div class="menu-item" id="menu-seller-wa"><span class="mi">&#x1F4AC;</span><span class="ml">Chat WhatsApp Toko</span><span class="ma">&#x203A;</span></div>
         <div class="menu-item" id="menu-ulasan-seller"><span class="mi">&#x2B50;</span><span class="ml">Lihat Semua Ulasan</span><span class="ma">&#x203A;</span></div>
       </div>
-      <div style="padding:14px;">
+      <div style="padding:14px 14px 36px;">
         <button id="seller-logout-btn" style="width:100%;padding:14px;border-radius:14px;border:2px solid var(--danger);background:white;color:var(--danger);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Poppins',sans-serif;">
           &#x1F6AA; Keluar / Logout
         </button>
@@ -1180,7 +1181,7 @@ function renderStockList(){
     var pct=Math.min(100,Math.round(p.stock/60*100));
     var cls=p.stock<=5?'low':p.stock<=15?'mid':'';
     var iconHtml = p.imgData
-      ? '<div class="si-icon"><img src="'+p.imgData+'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;"/></div>'
+      ? '<div class="si-icon"><img src="'+p.imgData+'"/></div>'
       : '<div class="si-icon">'+p.icon+'</div>';
     return '<div class="stock-item">'+iconHtml+'<div class="si-info"><div class="si-name">'+p.name+'</div><div class="si-price">'+fmtRp(p.price)+'/'+p.unit+'</div><div class="si-qty">Stok: '+p.stock+' '+p.unit+(p.stock<=5?' \u26A0\uFE0F':'')+'</div><div class="prog-bar"><div class="prog-fill '+cls+'" style="width:'+pct+'%"></div></div></div><div class="si-actions"><button class="si-edit" data-action="edit" data-id="'+p.id+'">\u270F\uFE0F Edit</button><button class="si-del" data-action="del" data-id="'+p.id+'">\uD83D\uDDD1\uFE0F</button></div></div>';
   }).join('');
