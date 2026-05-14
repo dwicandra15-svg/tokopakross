@@ -50,7 +50,7 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);max
 .mode-pill{background:rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,.35);}
 /* CONTENT — setiap section mengisi penuh, tidak scroll bersama section lain */
 .content{flex:1;overflow:hidden;position:relative;}
-.section{display:none;position:absolute;inset:0;overflow-y:auto;padding-bottom:calc(var(--nav)+80px);-webkit-overflow-scrolling:touch;visibility:hidden;}
+.section{display:none;position:absolute;inset:0;overflow-y:auto;padding-bottom:calc(var(--nav)+100px);-webkit-overflow-scrolling:touch;visibility:hidden;}
 .section.active{display:block;visibility:visible;animation:fadeIn .18s ease;}
 /* Saat app baru load (sebelum session restore), sembunyikan semua content agar tidak ada flicker/overlap */
 #app:not(.session-ready) .content{visibility:hidden;}
@@ -76,7 +76,7 @@ button:active,.role-btn:active,.big-btn:active,.ghost-btn:active,.danger-ghost-b
 .section-title{font-size:14px;font-weight:700;color:var(--text);margin:18px 14px 10px;display:flex;align-items:center;gap:6px;}
 .section-title::before{content:'';width:4px;height:16px;background:var(--primary);border-radius:2px;display:block;}
 .spacer{height:14px;}
-.watermark{text-align:center;padding:20px 14px 6px;font-size:10px;color:var(--muted);line-height:1.7;}
+.watermark{text-align:center;padding:20px 14px 32px;font-size:10px;color:var(--muted);line-height:1.7;}
 .watermark strong{color:var(--primary);}
 /* BUYER HOME */
 .hero-banner{margin:14px 14px 0;background:linear-gradient(135deg,var(--accent-dark),var(--accent));border-radius:var(--radius);padding:18px;display:flex;align-items:center;justify-content:space-between;overflow:hidden;position:relative;}
