@@ -546,7 +546,7 @@ button:active,.role-btn:active,.big-btn:active,.ghost-btn:active,.danger-ghost-b
           <span id="notif-status-text">Memeriksa izin notifikasi...</span>
         </div>
         <button id="notif-enable-btn" style="display:none;background:#1a56c4;color:white;border:none;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">Aktifkan</button>
-        <button id="notif-test-btn" style="background:rgba(0,0,0,.1);color:inherit;border:none;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">&#x1F50A; Test</button>
+        <button id="notif-test-btn" style="background:#fff;color:#1a56c4;border:none;border-radius:8px;padding:6px 14px;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);">&#x1F50A; Test Suara</button>
       </div>
       <div id="seller-orders-list"><div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;">&#x1F4ED; Belum ada pesanan masuk</div></div>
       <div class="watermark"><small>Developed &amp; Supported by <strong>D.D Candra</strong> &copy; 2026</small></div>
@@ -1635,27 +1635,62 @@ function getAudioCtx(){
 function playOrderAlarm(){
   try {
     var ctx = getAudioCtx();
-    // Resume context if suspended (required by browser autoplay policy)
     var resume = ctx.state === 'suspended' ? ctx.resume() : Promise.resolve();
     resume.then(function(){
-      // Play 3 beeps: high-low-high pattern like a store chime
-      var beeps = [
-        {freq:880, start:0,    dur:0.18},
-        {freq:660, start:0.22, dur:0.18},
-        {freq:880, start:0.44, dur:0.18},
-        {freq:1100,start:0.66, dur:0.28},
+      var t = ctx.currentTime;
+
+      // Layer 1: Melodi "ding-dong" toko — nyaring dan jelas
+      var melody = [
+        {freq:1047, start:0.00, dur:0.20, vol:0.9}, // C6
+        {freq:784,  start:0.22, dur:0.20, vol:0.9}, // G5
+        {freq:880,  start:0.44, dur:0.20, vol:0.9}, // A5
+        {freq:523,  start:0.66, dur:0.35, vol:1.0}, // C5 (panjang)
+        // Ulang sekali lagi lebih keras
+        {freq:1047, start:1.10, dur:0.20, vol:1.0},
+        {freq:784,  start:1.32, dur:0.20, vol:1.0},
+        {freq:880,  start:1.54, dur:0.20, vol:1.0},
+        {freq:523,  start:1.76, dur:0.40, vol:1.0},
       ];
-      beeps.forEach(function(b){
+
+      melody.forEach(function(b){
+        // Oscillator utama — sine untuk melodi bersih
         var osc = ctx.createOscillator();
         var gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(b.freq, ctx.currentTime + b.start);
-        gain.gain.setValueAtTime(0, ctx.currentTime + b.start);
-        gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + b.start + 0.03);
-        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + b.start + b.dur);
-        osc.start(ctx.currentTime + b.start);
-        osc.stop(ctx.currentTime + b.start + b.dur + 0.05);
+        osc.frequency.setValueAtTime(b.freq, t + b.start);
+        gain.gain.setValueAtTime(0, t + b.start);
+        gain.gain.linearRampToValueAtTime(b.vol, t + b.start + 0.02);
+        gain.gain.linearRampToValueAtTime(b.vol * 0.7, t + b.start + b.dur * 0.6);
+        gain.gain.linearRampToValueAtTime(0, t + b.start + b.dur);
+        osc.start(t + b.start);
+        osc.stop(t + b.start + b.dur + 0.05);
+
+        // Oscillator harmonic — triangle untuk mengisi body suara
+        var osc2 = ctx.createOscillator();
+        var gain2 = ctx.createGain();
+        osc2.connect(gain2); gain2.connect(ctx.destination);
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(b.freq * 2, t + b.start);
+        gain2.gain.setValueAtTime(0, t + b.start);
+        gain2.gain.linearRampToValueAtTime(b.vol * 0.3, t + b.start + 0.02);
+        gain2.gain.linearRampToValueAtTime(0, t + b.start + b.dur * 0.5);
+        osc2.start(t + b.start);
+        osc2.stop(t + b.start + b.dur + 0.05);
+      });
+
+      // Layer 2: Pulse bass — "thump" di awal untuk perhatian ekstra
+      [0.00, 1.10].forEach(function(ts){
+        var osc3 = ctx.createOscillator();
+        var gain3 = ctx.createGain();
+        osc3.connect(gain3); gain3.connect(ctx.destination);
+        osc3.type = 'sine';
+        osc3.frequency.setValueAtTime(120, t + ts);
+        osc3.frequency.exponentialRampToValueAtTime(60, t + ts + 0.15);
+        gain3.gain.setValueAtTime(0.8, t + ts);
+        gain3.gain.linearRampToValueAtTime(0, t + ts + 0.15);
+        osc3.start(t + ts);
+        osc3.stop(t + ts + 0.2);
       });
     });
   } catch(e){ /* audio not supported */ }
