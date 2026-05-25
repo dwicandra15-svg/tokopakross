@@ -1066,7 +1066,7 @@ var LOGOS  = ['🛒','🏪','🏬','🏭','\u2B50','🌟','💛','🔑','🎯','
 // ═══════════════════════════════════════════════
 function fmtRp(n){ return 'Rp '+Number(n).toLocaleString('id-ID'); }
 function nowFull(){ return new Date().toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
-function genId(){ return '#PRK-'+Date.now().toString().slice(-6); }
+function genId(){ return 'PRK_'+Date.now().toString().slice(-6); }
 function setEl(id,html){ var e=document.getElementById(id); if(e) e.innerHTML=html; }
 function setTxt(id,t){ var e=document.getElementById(id); if(e) e.textContent=t; }
 function $(id){ return document.getElementById(id); }
@@ -1375,14 +1375,16 @@ function renderSellerOrders(){
 function deleteOrderBuyer(id){
   if(!confirm('Hapus riwayat pesanan ini?')) return;
   orders = orders.filter(function(o){ return o.id !== id; });
-  saveLS(); if(_db) _db.ref('orders/'+id).remove();
+  var fbId = id.replace(/[^a-zA-Z0-9_]/g,'_');
+  saveLS(); if(_db) _db.ref('orders/'+fbId).remove();
   renderBuyerOrders(); updateDashStats();
   showToast('\uD83D\uDDD1 Pesanan dihapus dari riwayat');
 }
 function deleteOrderSeller(id){
   if(!confirm('Hapus pesanan ini dari daftar?')) return;
   orders = orders.filter(function(o){ return o.id !== id; });
-  saveLS(); if(_db) _db.ref('orders/'+id).remove();
+  var fbId = id.replace(/[^a-zA-Z0-9_]/g,'_');
+  saveLS(); if(_db) _db.ref('orders/'+fbId).remove();
   renderSellerOrders(); renderBuyerOrders(); updateDashStats();
   showToast('\uD83D\uDDD1 Pesanan dihapus','warn');
 }
