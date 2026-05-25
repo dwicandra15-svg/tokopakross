@@ -2157,8 +2157,28 @@ function setMode(mode){
   $('nav-seller').style.display = isBuyer ? 'none' : 'flex';
   $('cart-btn').style.display   = isBuyer ? 'flex' : 'none';
 
-  if(isBuyer) switchNav('home');
-  else        switchNavSeller('dashboard');
+  if(isBuyer){
+    switchNav('home');
+  } else {
+    // Mode seller — ambil data orders FRESH dari Firebase sebagai master
+    // Ini memastikan semua device seller selalu sinkron
+    if(_db){
+      _db.ref('orders').once('value', function(snap){
+        var data = snap.val();
+        if(data){
+          var fbOrders = Array.isArray(data) ? data.filter(Boolean) : Object.values(data);
+          // Replace orders dengan data Firebase (bukan merge) — Firebase adalah master
+          orders = fbOrders.filter(function(o){ return o && o.id; });
+        } else {
+          orders = []; // Firebase kosong — bersihkan lokal juga
+        }
+        saveLS();
+        switchNavSeller('dashboard');
+      });
+    } else {
+      switchNavSeller('dashboard');
+    }
+  }
 }
 
 function switchNav(name){
@@ -2396,23 +2416,36 @@ document.addEventListener('DOMContentLoaded', function(){
       $('nav-buyer').style.display = 'none';
       $('nav-seller').style.display = 'flex';
       $('cart-btn').style.display = 'none';
-      // Sembunyikan SEMUA section dulu sebelum set yang aktif
+      // Sembunyikan SEMUA section dulu
       BUYER_SECS.concat(SELLER_SECS).forEach(function(s){
         var el=$('sec-'+s); if(el){ el.classList.remove('active'); el.scrollTop=0; }
       });
       var targetPage = sess.page || 'dashboard';
       var t=$('sec-'+targetPage); if(t){ t.classList.add('active'); t.scrollTop=0; }
-      // Update nav highlight seller
       ['dashboard','stock','report','profile'].forEach(function(k){
         var nb=$('ns-'+k); if(nb) nb.classList.remove('active');
       });
       var map={'dashboard':'dashboard','stock':'stock','report':'report','seller-profile':'profile'};
       var nb=$('ns-'+(map[targetPage]||targetPage)); if(nb) nb.classList.add('active');
-      if(targetPage==='stock')     renderStockList();
-      if(targetPage==='report')    renderTopProds();
-      if(targetPage==='dashboard'){ renderSellerOrders(); updateNotifStatusBar(); }
-      // Cek pesanan pending setelah Firebase load
-      setTimeout(function(){ checkPendingOrdersOnLogin(); }, 2000);
+      // Seller: ambil orders FRESH dari Firebase sebagai master data
+      if(_db){
+        _db.ref('orders').once('value', function(snap){
+          var data = snap.val();
+          orders = data
+            ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(function(o){ return o && o.id; })
+            : [];
+          saveLS();
+          if(targetPage==='stock')     renderStockList();
+          if(targetPage==='report')    renderTopProds();
+          if(targetPage==='dashboard'){ renderSellerOrders(); updateNotifStatusBar(); }
+          setTimeout(function(){ checkPendingOrdersOnLogin(); }, 2000);
+        });
+      } else {
+        if(targetPage==='stock')     renderStockList();
+        if(targetPage==='report')    renderTopProds();
+        if(targetPage==='dashboard'){ renderSellerOrders(); updateNotifStatusBar(); }
+        setTimeout(function(){ checkPendingOrdersOnLogin(); }, 2000);
+      }
     }
   }
   // Tandai app sudah siap — baru tampilkan content (hilangkan sembunyian anti-flicker)
