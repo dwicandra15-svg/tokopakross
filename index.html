@@ -932,20 +932,28 @@ function saveOrderFB(o){
 function listenOrders(){
   if(!_db) return;
 
-  // Step 1: Load semua pesanan existing DULU (sekali)
+  // Pre-populate existingIds dari localStorage agar tidak dobel
+  var existingIds = {};
+  orders.forEach(function(o){ if(o && o.id) existingIds[o.id] = true; });
+
+  // Step 1: Load semua pesanan dari Firebase — merge dengan yang sudah ada
   _db.ref('orders').once('value', function(snap){
     var data = snap.val();
-    var existingIds = {};
     if(data){
-      var existing = Array.isArray(data) ? data.filter(Boolean) : Object.values(data);
-      existing.forEach(function(fo){
+      var fbOrders = Array.isArray(data) ? data.filter(Boolean) : Object.values(data);
+      fbOrders.forEach(function(fo){
         if(fo && fo.id){
           existingIds[fo.id] = true;
-          if(!orders.find(function(o){ return o.id===fo.id; })){
+          var idx = orders.findIndex(function(o){ return o.id === fo.id; });
+          if(idx >= 0){
+            // Update data lokal dengan data Firebase (lebih fresh)
+            orders[idx] = fo;
+          } else {
             orders.push(fo);
           }
         }
       });
+      saveLS();
       renderBuyerOrders(); renderSellerOrders(); updateDashStats();
     }
 
@@ -1301,7 +1309,14 @@ function loadLS(){
     if(!raw) return;
     var d=JSON.parse(raw);
     if(d.products && d.products.length) products=d.products;
-    if(d.orders) orders=d.orders;
+    if(d.orders){
+      // Dedup — pastikan tidak ada ID yang sama
+      var seen={};
+      orders = d.orders.filter(function(o){
+        if(!o || !o.id || seen[o.id]) return false;
+        seen[o.id]=true; return true;
+      });
+    }
     if(d.storeInfo) storeInfo=Object.assign(storeInfo,d.storeInfo);
     if(d.notifications) notifications=d.notifications;
     if(d.buyerProfile) buyerProfile=Object.assign(buyerProfile,d.buyerProfile);
