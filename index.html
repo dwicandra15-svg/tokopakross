@@ -1719,13 +1719,25 @@ function sendBrowserNotif(title, body){
   if(!('Notification' in window)) return;
   if(Notification.permission !== 'granted') return;
   try {
+    // Jalur 1: Lewat Service Worker (background-safe, lebih andal)
+    if(_swReg && _swReg.active){
+      _swReg.active.postMessage({
+        type  : 'SHOW_NOTIF',
+        title : title,
+        body  : body,
+        icon  : storeInfo && storeInfo.logo ? storeInfo.logo : ''
+      });
+      return;
+    }
+    // Jalur 2: Fallback — Notification API langsung (tab harus aktif)
     var n = new Notification(title, {
-      body: body,
-      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">\uD83D\uDED2</text></svg>',
-      badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">\uD83D\uDED2</text></svg>',
-      tag: 'pakross-order',
-      renotify: true,
-      requireInteraction: true
+      body             : body,
+      icon             : 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">\uD83D\uDED2</text></svg>',
+      badge            : 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">\uD83D\uDED2</text></svg>',
+      tag              : 'pakross-order',
+      renotify         : true,
+      requireInteraction: true,
+      vibrate          : [200, 100, 200, 100, 400]
     });
     n.onclick = function(){
       window.focus();
@@ -1770,8 +1782,12 @@ function updateNotifStatusBar(){
   }
   var perm=Notification.permission;
   if(perm==='granted'){
+    var swActive = _swReg && _swReg.active;
     bar.style.background='#d4edda'; bar.style.color='#155724';
-    icon.textContent='\uD83D\uDD14'; text.textContent='Notifikasi & alarm aktif \u2014 siap terima pesanan!';
+    icon.textContent='\uD83D\uDD14';
+    text.textContent = swActive
+      ? 'Notifikasi aktif \u2014 background mode ON \u2705'
+      : 'Notifikasi & alarm aktif \u2014 siap terima pesanan!';
     if(enableBtn) enableBtn.style.display='none';
   } else if(perm==='denied'){
     bar.style.background='#f8d7da'; bar.style.color='#721c24';
@@ -2469,6 +2485,58 @@ function showStruk(orderId){
 function printStruk(){var c=$('struk-paper').innerHTML;var w=window.open('','_blank','width=320,height=600');if(!w){showToast('Izinkan popup untuk mencetak','warn');return;}w.document.write('<html><head><title>Struk</title><style>body{font-family:"Courier New",monospace;margin:0;padding:16px 14px;font-size:11px;max-width:300px;}.struk-store-name{text-align:center;font-size:14px;font-weight:bold;}.struk-logo{text-align:center;font-size:22px;margin-bottom:2px;}.struk-store-sub{text-align:center;font-size:10px;}.struk-divider{border-top:1px dashed #000;margin:7px 0;}.struk-row{display:flex;justify-content:space-between;margin:3px 0;font-size:11px;}.struk-row.bold{font-weight:bold;}.struk-row.total{font-weight:bold;font-size:13px;border-top:1px solid #000;padding-top:5px;margin-top:5px;}.struk-item{font-size:11px;margin:2px 0;}.struk-item-sub{font-size:10px;color:#444;padding-left:8px;}.struk-center{text-align:center;font-size:11px;margin:3px 0;}.struk-big{text-align:center;font-size:12px;font-weight:bold;margin:5px 0;}</style></head><body>');w.document.write(c);w.document.write('</body></html>');w.document.close();setTimeout(function(){w.print();},500);}
 function deleteProductDirect(id){var p=products.find(function(x){return x.id===id;});if(!confirm('Hapus "'+(p?p.name:'')+'"?'))return;products=products.filter(function(x){return x.id!==id;});fbSet('products',products);renderBuyerGrid();renderStockList();renderTopProds();showToast('\uD83D\uDDD1\uFE0F Dihapus','warn');}
 function cancelOrderBuyer(id){var o=orders.find(function(x){return x.id===id;});if(!o||o.status==='done'||o.status==='delivering'){showToast('\u274C Tidak bisa dibatalkan','err');return;}if(!confirm('Batalkan pesanan '+id+'?'))return;o.status='cancelled';saveLS();saveOrderFB(o);addNotif({title:'\u274C Pesanan Dibatalkan',body:id+' \u2014 '+o.buyerName,type:''});renderBuyerOrders();renderSellerOrders();updateDashStats();showToast('Dibatalkan','warn');}
+// ═══════════════════════════════════════════════
+// SERVICE WORKER — Registrasi & Integrasi
+// ═══════════════════════════════════════════════
+var _swReg = null; // global SW registration
+
+function registerSW(){
+  if(!('serviceWorker' in navigator)){
+    console.warn('[SW] Service Worker tidak didukung browser ini.');
+    return;
+  }
+  navigator.serviceWorker.register('./sw.js', { scope: './' })
+    .then(function(reg){
+      _swReg = reg;
+      console.log('[SW] Terdaftar, scope:', reg.scope);
+
+      // Dengarkan pesan dari SW (misal: buka dashboard)
+      navigator.serviceWorker.addEventListener('message', function(e){
+        if(e.data && e.data.action === 'open-dashboard'){
+          window.focus();
+          if(currentMode === 'seller') switchNavSeller('dashboard');
+        }
+      });
+
+      // Cek update SW saat halaman dimuat
+      reg.update();
+    })
+    .catch(function(err){
+      console.warn('[SW] Gagal daftar:', err);
+    });
+}
+
+// Kirim notifikasi via SW (background-safe)
+// Dipanggil sebagai fallback jika tab aktif tapi SW tersedia
+function sendSWNotif(title, body){
+  if(!_swReg) return false;
+  try {
+    _swReg.active.postMessage({
+      type  : 'SHOW_NOTIF',
+      title : title,
+      body  : body,
+      icon  : storeInfo && storeInfo.logo ? storeInfo.logo : ''
+    });
+    return true;
+  } catch(e){ return false; }
+}
+
+// Jalankan registrasi SW saat halaman siap
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', registerSW);
+} else {
+  registerSW();
+}
 
 </script>
 </body>
