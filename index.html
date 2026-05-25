@@ -1004,12 +1004,22 @@ function listenOrders(){
         }
       }
     });
+    // Step 4: Dengarkan pesanan yang dihapus
+    _db.ref('orders').on('child_removed', function(snap){
+      var fo = snap.val();
+      if(!fo || !fo.id) return;
+      orders = orders.filter(function(o){ return o.id !== fo.id; });
+      delete existingIds[fo.id];
+      saveLS();
+      renderBuyerOrders(); renderSellerOrders(); updateDashStats();
+    });
   });
 }
 function listenProducts(){
   fbListen('products', function(data){
     if(!data) return;
     products = Array.isArray(data) ? data.filter(Boolean) : Object.values(data);
+    saveLS();
     renderBuyerGrid(); renderStockList(); renderTopProds();
   });
 }
