@@ -110,7 +110,7 @@ button:active,.role-btn:active,.big-btn:active,.ghost-btn:active,.danger-ghost-b
 .cart-empty h3{font-size:18px;font-weight:700;margin-bottom:6px;}
 .cart-empty p{color:var(--muted);font-size:13px;}
 .cart-item{background:white;margin:8px 14px;border-radius:var(--radius);padding:14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);}
-.ci-img{font-size:36px;width:50px;text-align:center;flex-shrink:0;}
+.ci-img{font-size:36px;width:56px;height:56px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:10px;background:var(--primary-light);overflow:hidden;}
 .ci-info{flex:1;min-width:0;}
 .ci-name{font-size:13px;font-weight:700;}
 .ci-price{font-size:13px;font-weight:800;color:var(--primary);font-family:'Nunito',sans-serif;}
@@ -1898,7 +1898,10 @@ function renderCart(){
   var ongkir=0; var total=sub;
   var items=cart.map(function(item){
     var p=products.find(function(x){return x.id===item.id;}); if(!p) return '';
-    return '<div class="cart-item"><div class="ci-img">'+p.icon+'</div><div class="ci-info"><div class="ci-name">'+p.name+'</div><div class="ci-price">'+fmtRp(p.price)+'</div><div class="qty-ctrl"><button class="qty-btn" data-action="qty" data-id="'+p.id+'" data-d="-1">\u2212</button><span class="qty-val">'+item.qty+'</span><button class="qty-btn" data-action="qty" data-id="'+p.id+'" data-d="1">+</button></div></div><div style="font-size:13px;font-weight:800;color:var(--primary);font-family:Nunito,sans-serif;flex-shrink:0;">'+fmtRp(p.price*item.qty)+'</div></div>';
+    var imgHtml = p.imgData
+      ? '<div class="ci-img" style="width:56px;height:56px;border-radius:10px;overflow:hidden;flex-shrink:0;"><img src="'+p.imgData+'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;"/></div>'
+      : '<div class="ci-img">'+p.icon+'</div>';
+    return '<div class="cart-item">'+imgHtml+'<div class="ci-info"><div class="ci-name">'+p.name+'</div><div class="ci-price">'+fmtRp(p.price)+'</div><div class="qty-ctrl"><button class="qty-btn" data-action="qty" data-id="'+p.id+'" data-d="-1">\u2212</button><span class="qty-val">'+item.qty+'</span><button class="qty-btn" data-action="qty" data-id="'+p.id+'" data-d="1">+</button></div></div><div style="font-size:13px;font-weight:800;color:var(--primary);font-family:Nunito,sans-serif;flex-shrink:0;">'+fmtRp(p.price*item.qty)+'</div></div>';
   }).join('');
   el.innerHTML='<div class="section-title">\uD83E\uDDFA Keranjang ('+cart.length+' item)</div>'+items
     +'<div class="delivery-opt"><h4>Opsi Pengambilan</h4><div class="d-radios">'
